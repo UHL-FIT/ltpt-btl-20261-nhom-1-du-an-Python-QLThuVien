@@ -17,6 +17,24 @@ class StudentController:
         finally:
             session.close()
 
+    def update_student(self, old_id, new_id, name, email, phone):
+        session = get_session()
+        try:
+            student = session.query(Student).filter_by(student_id=old_id).first()
+            if student:
+                student.student_id = new_id
+                student.name = name
+                student.email = email
+                student.phone = phone
+                session.commit()
+                return True, "Cập nhật sinh viên thành công!"
+            return False, "Không tìm thấy sinh viên"
+        except Exception as e:
+            session.rollback()
+            return False, str(e)
+        finally:
+            session.close()
+
     def get_all_students(self):
         session = get_session()
         students = session.query(Student).all()

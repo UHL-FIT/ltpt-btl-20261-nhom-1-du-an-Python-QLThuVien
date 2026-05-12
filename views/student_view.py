@@ -20,33 +20,7 @@ class StudentView(ctk.CTkFrame):
         )
         header.pack(anchor="w", pady=(0, 20))
         
-        # Action Panel (Top)
-        action_frame = ctk.CTkFrame(self)
-        action_frame.pack(fill="x", pady=(0, 20), padx=5)
-        
-        action_frame.grid_columnconfigure((1, 3, 5, 7), weight=1)
 
-        ctk.CTkLabel(action_frame, text="Mã SV:").grid(row=0, column=0, padx=10, pady=15, sticky="w")
-        self.id_entry = ctk.CTkEntry(action_frame, placeholder_text="Mã SV")
-        self.id_entry.grid(row=0, column=1, padx=10, pady=15, sticky="ew")
-
-        ctk.CTkLabel(action_frame, text="Họ Tên:").grid(row=0, column=2, padx=10, pady=15, sticky="w")
-        self.name_entry = ctk.CTkEntry(action_frame, placeholder_text="Họ Tên")
-        self.name_entry.grid(row=0, column=3, padx=10, pady=15, sticky="ew")
-
-        ctk.CTkLabel(action_frame, text="Email:").grid(row=0, column=4, padx=10, pady=15, sticky="w")
-        self.email_entry = ctk.CTkEntry(action_frame, placeholder_text="Email")
-        self.email_entry.grid(row=0, column=5, padx=10, pady=15, sticky="ew")
-        
-        ctk.CTkLabel(action_frame, text="Số ĐT:").grid(row=0, column=6, padx=10, pady=15, sticky="w")
-        self.phone_entry = ctk.CTkEntry(action_frame, placeholder_text="Số điện thoại")
-        self.phone_entry.grid(row=0, column=7, padx=10, pady=15, sticky="ew")
-
-        btn_frame = ctk.CTkFrame(action_frame, fg_color="transparent")
-        btn_frame.grid(row=0, column=8, padx=10, pady=15, sticky="e")
-
-        self.add_btn = ctk.CTkButton(btn_frame, text="Thêm SV", command=self.handle_add, width=120)
-        self.add_btn.pack(side="left")
 
         # Search Bar & List Actions
         search_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -60,7 +34,10 @@ class StudentView(ctk.CTkFrame):
         self.search_btn.pack(side="left", padx=(0, 10))
 
         self.refresh_btn = ctk.CTkButton(search_frame, text="Làm mới", command=self.refresh_list, width=100)
-        self.refresh_btn.pack(side="left")
+        self.refresh_btn.pack(side="left", padx=(0, 10))
+
+        self.add_new_btn = ctk.CTkButton(search_frame, text="Thêm Mới", command=lambda: self.open_student_form(), width=100, fg_color="#4caf50", hover_color="#388e3c")
+        self.add_new_btn.pack(side="left")
 
         # Row level action placed on the right side of search bar for symmetrical ERP UI
         self.del_btn = ctk.CTkButton(
@@ -89,31 +66,71 @@ class StudentView(ctk.CTkFrame):
         self.table.set_column_width("email", 200)
         self.table.set_column_width("phone", 150)
         
+        self.table.tree.bind("<Double-1>", self.handle_edit)
+
         self.refresh_list()
 
-    def handle_add(self):
-        sid = self.id_entry.get()
-        name = self.name_entry.get()
-        email = self.email_entry.get()
-        phone = self.phone_entry.get()
-        
-        if sid and name:
-            success, msg = self.controller.add_student(sid, name, email, phone)
+    def handle_edit(self, event):
+        selected = self.table.get_selected()
+        if selected:
+            self.open_student_form(student_data=selected)
+
+    def open_student_form(self, student_data=None):
+        form_window = ctk.CTkToplevel(self)
+        form_window.title("Sửa Sinh Viên" if student_data else "Thêm Sinh Viên Mới")
+        form_window.geometry("400x420")
+        form_window.transient(self.winfo_toplevel())
+        form_window.grab_set()
+
+        ctk.CTkLabel(form_window, text="Mã SV:").pack(pady=(20, 5), padx=20, anchor="w")
+        id_entry = ctk.CTkEntry(form_window, placeholder_text="Mã SV")
+        id_entry.pack(fill="x", padx=20, pady=5)
+
+        ctk.CTkLabel(form_window, text="Họ Tên:").pack(pady=5, padx=20, anchor="w")
+        name_entry = ctk.CTkEntry(form_window, placeholder_text="Họ Tên")
+        name_entry.pack(fill="x", padx=20, pady=5)
+
+        ctk.CTkLabel(form_window, text="Email:").pack(pady=5, padx=20, anchor="w")
+        email_entry = ctk.CTkEntry(form_window, placeholder_text="Email")
+        email_entry.pack(fill="x", padx=20, pady=5)
+
+        ctk.CTkLabel(form_window, text="Số ĐT:").pack(pady=5, padx=20, anchor="w")
+        phone_entry = ctk.CTkEntry(form_window, placeholder_text="Số điện thoại")
+        phone_entry.pack(fill="x", padx=20, pady=5)
+
+        if student_data:
+            id_entry.insert(0, str(student_data[0]))
+            name_entry.insert(0, str(student_data[1]))
+            email_entry.insert(0, str(student_data[2]) if student_data[2] != 'None' else "")
+            phone_entry.insert(0, str(student_data[3]) if student_data[3] != 'None' else "")
+
+        def save_data():
+            sid = id_entry.get()
+            name = name_entry.get()
+            email = email_entry.get()
+            phone = phone_entry.get()
+
+            if not (sid and name):
+                messagebox.showwarning("Lỗi nhập liệu", "Vui lòng điền các trường bắt buộc (Mã SV, Họ Tên)")
+                return
+
+            if student_data:
+                old_id = student_data[0]
+                success, msg = self.controller.update_student(old_id, sid, name, email, phone)
+            else:
+                success, msg = self.controller.add_student(sid, name, email, phone)
+
             if success:
                 self.refresh_list()
                 if self.on_refresh:
                     self.on_refresh()
-                self.id_entry.delete(0, 'end')
-                self.name_entry.delete(0, 'end')
-                self.email_entry.delete(0, 'end')
-                self.phone_entry.delete(0, 'end')
                 messagebox.showinfo("Thành công", msg)
+                form_window.destroy()
             else:
                 messagebox.showerror("Lỗi", msg)
-        else:
-            messagebox.showwarning(
-                "Lỗi nhập liệu", "Vui lòng điền các trường bắt buộc (Mã SV, Họ Tên)"
-            )
+
+        save_btn = ctk.CTkButton(form_window, text="Lưu", command=save_data)
+        save_btn.pack(pady=20)
 
     def handle_search_realtime(self, event):
         self.handle_search()

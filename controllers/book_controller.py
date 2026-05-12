@@ -16,6 +16,23 @@ class BookController:
         finally:
             session.close()
 
+    def update_book(self, old_isbn, new_isbn, name, genre):
+        session = get_session()
+        try:
+            book = session.query(Book).filter_by(isbn=old_isbn).first()
+            if book:
+                book.isbn = new_isbn
+                book.name = name
+                book.genre = genre
+                session.commit()
+                return True, "Cập nhật sách thành công!"
+            return False, "Không tìm thấy sách"
+        except Exception as e:
+            session.rollback()
+            return False, str(e)
+        finally:
+            session.close()
+
     def get_all_books(self):
         session = get_session()
         books = session.query(Book).all()

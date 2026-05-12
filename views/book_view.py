@@ -20,29 +20,7 @@ class BookView(ctk.CTkFrame):
         )
         header.pack(anchor="w", pady=(0, 20))
         
-        # Action Panel (Top)
-        action_frame = ctk.CTkFrame(self)
-        action_frame.pack(fill="x", pady=(0, 20), padx=5)
-        
-        action_frame.grid_columnconfigure((1, 3, 5), weight=1)
 
-        ctk.CTkLabel(action_frame, text="Mã sách (ISBN):").grid(row=0, column=0, padx=10, pady=15, sticky="w")
-        self.isbn_entry = ctk.CTkEntry(action_frame, placeholder_text="Ví dụ: 978-...")
-        self.isbn_entry.grid(row=0, column=1, padx=10, pady=15, sticky="ew")
-
-        ctk.CTkLabel(action_frame, text="Tên sách:").grid(row=0, column=2, padx=10, pady=15, sticky="w")
-        self.name_entry = ctk.CTkEntry(action_frame, placeholder_text="Tên sách")
-        self.name_entry.grid(row=0, column=3, padx=10, pady=15, sticky="ew")
-
-        ctk.CTkLabel(action_frame, text="Thể loại:").grid(row=0, column=4, padx=10, pady=15, sticky="w")
-        self.genre_entry = ctk.CTkEntry(action_frame, placeholder_text="Ví dụ: Tiểu thuyết")
-        self.genre_entry.grid(row=0, column=5, padx=10, pady=15, sticky="ew")
-
-        btn_frame = ctk.CTkFrame(action_frame, fg_color="transparent")
-        btn_frame.grid(row=0, column=6, padx=10, pady=15, sticky="e")
-
-        self.add_btn = ctk.CTkButton(btn_frame, text="Thêm Sách", command=self.handle_add, width=120)
-        self.add_btn.pack(side="left")
 
         # Search Bar & List Actions
         search_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -56,7 +34,10 @@ class BookView(ctk.CTkFrame):
         self.search_btn.pack(side="left", padx=(0, 10))
 
         self.refresh_btn = ctk.CTkButton(search_frame, text="Làm mới", command=self.refresh_list, width=100)
-        self.refresh_btn.pack(side="left")
+        self.refresh_btn.pack(side="left", padx=(0, 10))
+
+        self.add_new_btn = ctk.CTkButton(search_frame, text="Thêm Mới", command=lambda: self.open_book_form(), width=100, fg_color="#4caf50", hover_color="#388e3c")
+        self.add_new_btn.pack(side="left")
 
         # Row level action placed on the right side of search bar for symmetrical ERP UI
         self.del_btn = ctk.CTkButton(
@@ -89,29 +70,65 @@ class BookView(ctk.CTkFrame):
         self.table.tree.tag_configure("available", foreground="#4caf50") # Green
         self.table.tree.tag_configure("borrowed", foreground="#ff9800") # Orange
         
+        self.table.tree.bind("<Double-1>", self.handle_edit)
+
         self.refresh_list()
 
-    def handle_add(self):
-        isbn = self.isbn_entry.get()
-        name = self.name_entry.get()
-        genre = self.genre_entry.get()
-        
-        if isbn and name:
-            success, msg = self.controller.add_book(isbn, name, genre)
+    def handle_edit(self, event):
+        selected = self.table.get_selected()
+        if selected:
+            self.open_book_form(book_data=selected)
+
+    def open_book_form(self, book_data=None):
+        form_window = ctk.CTkToplevel(self)
+        form_window.title("Sửa Sách" if book_data else "Thêm Sách Mới")
+        form_window.geometry("400x350")
+        form_window.transient(self.winfo_toplevel())
+        form_window.grab_set()
+
+        ctk.CTkLabel(form_window, text="Mã sách (ISBN):").pack(pady=(20, 5), padx=20, anchor="w")
+        isbn_entry = ctk.CTkEntry(form_window, placeholder_text="Ví dụ: 978-...")
+        isbn_entry.pack(fill="x", padx=20, pady=5)
+
+        ctk.CTkLabel(form_window, text="Tên sách:").pack(pady=5, padx=20, anchor="w")
+        name_entry = ctk.CTkEntry(form_window, placeholder_text="Tên sách")
+        name_entry.pack(fill="x", padx=20, pady=5)
+
+        ctk.CTkLabel(form_window, text="Thể loại:").pack(pady=5, padx=20, anchor="w")
+        genre_entry = ctk.CTkEntry(form_window, placeholder_text="Ví dụ: Tiểu thuyết")
+        genre_entry.pack(fill="x", padx=20, pady=5)
+
+        if book_data:
+            isbn_entry.insert(0, str(book_data[0]))
+            name_entry.insert(0, str(book_data[1]))
+            genre_entry.insert(0, str(book_data[2]))
+
+        def save_data():
+            isbn = isbn_entry.get()
+            name = name_entry.get()
+            genre = genre_entry.get()
+
+            if not (isbn and name):
+                messagebox.showwarning("Lỗi nhập liệu", "Vui lòng điền các trường bắt buộc (Mã sách, Tên sách)")
+                return
+
+            if book_data:
+                old_isbn = book_data[0]
+                success, msg = self.controller.update_book(old_isbn, isbn, name, genre)
+            else:
+                success, msg = self.controller.add_book(isbn, name, genre)
+
             if success:
                 self.refresh_list()
                 if self.on_refresh:
                     self.on_refresh()
-                self.isbn_entry.delete(0, 'end')
-                self.name_entry.delete(0, 'end')
-                self.genre_entry.delete(0, 'end')
                 messagebox.showinfo("Thành công", msg)
+                form_window.destroy()
             else:
                 messagebox.showerror("Lỗi", msg)
-        else:
-            messagebox.showwarning(
-                "Lỗi nhập liệu", "Vui lòng điền các trường bắt buộc (Mã sách, Tên sách)"
-            )
+
+        save_btn = ctk.CTkButton(form_window, text="Lưu", command=save_data)
+        save_btn.pack(pady=20)
 
     def handle_search_realtime(self, event):
         self.handle_search()
