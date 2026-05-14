@@ -1,9 +1,19 @@
+# ==============================================================================
+# Tệp: views/components/data_table.py
+# Mục đích: Định nghĩa thành phần bảng dữ liệu (DataTable) dùng chung (Reusable Component).
+# Chức năng:
+# - Bao bọc (wrap) ttk.Treeview của Tkinter.
+# - Thiết lập màu nền, font chữ và thanh cuộn (scrollbar) để hòa hợp với phong cách Dark Mode của CustomTkinter.
+# ==============================================================================
 import customtkinter as ctk
 from tkinter import ttk
 import tkinter as tk
 
 class DataTable(ctk.CTkFrame):
+    # Lớp Custom DataTable kế thừa từ CTkFrame.
+    
     def __init__(self, master, columns, **kwargs):
+        # Khởi tạo thành phần DataTable
         super().__init__(master, **kwargs)
         
         # Configure Grid

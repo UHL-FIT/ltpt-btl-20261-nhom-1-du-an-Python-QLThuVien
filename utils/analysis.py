@@ -1,3 +1,10 @@
+# ==============================================================================
+# Tệp: utils/analysis.py
+# Mục đích: Phân tích dữ liệu trong hệ thống và xuất báo cáo.
+# Chức năng chính:
+# - Gom nhóm, tính toán các chỉ số thống kê (sách đang mượn, phân bố thể loại).
+# - Sử dụng thư viện Pandas để hỗ trợ xử lý dữ liệu và xuất file Excel (.xlsx).
+# ==============================================================================
 import pandas as pd
 from database.db_manager import get_session
 from models.book import Book
@@ -6,8 +13,13 @@ from datetime import date
 
 
 class DataAnalyzer:
+    # Lớp phân tích dữ liệu chứa các phương thức tĩnh (staticmethod) gọi không cần khởi tạo.
+    
     @staticmethod
     def get_library_stats():
+        # Hàm tính toán và đóng gói một loạt các số liệu thống kê.
+        # Trả về một đối tượng Dictionary chứa các cặp key-value để hiển thị lên Dashboard.
+        
         from models.student import Student
         session = get_session()
         
@@ -69,7 +81,7 @@ class DataAnalyzer:
         # Lượt mượn theo tháng (6 tháng gần nhất)
         df_slips['month'] = df_slips['borrow_date'].astype(str).str[:7]
         monthly_counts = df_slips['month'].value_counts().sort_index().tail(6)
-        borrows_by_month = {str(m): int(val) for m, val in monthly_counts.items()}
+        borrows_by_month = {str(m): val for m, val in monthly_counts.items()}
         
         session.close()
         
@@ -89,15 +101,18 @@ class DataAnalyzer:
 
     @staticmethod
     def export_to_excel(filename="Library_Data.xlsx"):
+        # Hàm xuất toàn bộ dữ liệu danh mục sách và các phiếu mượn trả ra định dạng Excel (.xlsx).
+        # Sử dụng đối tượng pd.DataFrame để tạo bảng 2 chiều và pd.ExcelWriter để lưu file.
+        
         session = get_session()
         
-        # Export Books
+        # Xuất dữ liệu Sách
         books = session.query(Book).all()
         df_books = pd.DataFrame([{
             'Mã Sách (ISBN)': b.isbn, 'Tên Sách': b.name, 'Thể Loại': b.genre, 'Trạng Thái': "Có sẵn" if b.status == "Available" else "Đang mượn"
         } for b in books])
         
-        # Export Slips
+        # Xuất dữ liệu Phiếu mượn
         slips = session.query(BorrowSlip).all()
         df_slips = pd.DataFrame([{
             'ID': s.id, 'Mã Sinh Viên': s.student_id, 'Mã Sách': s.book_isbn,

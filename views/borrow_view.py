@@ -1,3 +1,10 @@
+# ==============================================================================
+# Tệp: views/borrow_view.py
+# Mục đích: Cung cấp giao diện Quản lý Mượn & Trả sách.
+# Chức năng chính:
+# - Tạo form nhập nhanh thông tin để lập Phiếu mượn (BorrowSlip).
+# - Tích hợp các bảng phân chia rõ ràng trạng thái: Đang mượn, Quá hạn, và Lịch sử (Đã trả).
+# ==============================================================================
 import customtkinter as ctk
 from controllers.borrow_controller import BorrowController
 from controllers.student_controller import StudentController
@@ -6,24 +13,31 @@ from tkinter import messagebox
 from views.components.data_table import DataTable
 
 class BorrowView(ctk.CTkFrame):
+    # Lớp giao diện hiển thị xử lý nghiệp vụ mượn/trả.
+    
     def __init__(self, parent, on_refresh=None):
+        # Khởi tạo khung giao diện mượn trả
         super().__init__(parent, fg_color="transparent")
         self.on_refresh = on_refresh
+        
+        # Controller chính cho phiếu mượn
         self.controller = BorrowController()
+        # Controller hỗ trợ tính năng tự động gợi ý (Autocomplete) sinh viên và sách
         self.student_ctrl = StudentController()
         self.book_ctrl = BookController()
         
+        # Vẽ cấu trúc giao diện
         self.setup_ui()
 
     def setup_ui(self):
-        # Header
+        # Phần tiêu đề của giao diện (Header)
         header = ctk.CTkLabel(
             self, text="Quản lý Mượn & Trả sách",
             font=ctk.CTkFont(size=28, weight="bold")
         )
         header.pack(anchor="w", pady=(0, 20))
         
-        # Action Panel (Top)
+        # Khu vực nhập liệu (Action Panel) nằm ở phía trên cùng của giao diện
         self.action_frame = ctk.CTkFrame(self)
         self.action_frame.pack(fill="x", pady=(0, 20), padx=5)
         
@@ -41,7 +55,7 @@ class BorrowView(ctk.CTkFrame):
         
         ctk.CTkLabel(self.action_frame, text="Hạn trả dự kiến:").grid(row=0, column=4, padx=10, pady=15, sticky="w")
         
-        # Style DateEntry within a custom CTkFrame to replicate a native CTkEntry
+        # Tùy chỉnh giao diện DateEntry bên trong một CTkFrame để tạo cảm giác giống với CTkEntry nguyên bản của CustomTkinter
         self.date_frame = ctk.CTkFrame(
             self.action_frame, 
             fg_color="#343638", 
@@ -90,15 +104,15 @@ class BorrowView(ctk.CTkFrame):
         self.issue_btn = ctk.CTkButton(btn_frame, text="Cho Mượn", command=self.handle_borrow, width=100)
         self.issue_btn.pack(side="left", padx=(0, 10))
         
-        # Dropdowns for suggestions - parent is self so it can overlap the tabs below
+        # Khung xổ xuống (Dropdown) chứa các gợi ý tìm kiếm. Được đặt trực tiếp trên giao diện gốc (self) để có thể hiển thị đè lên các tab bên dưới.
         self.student_dropdown = ctk.CTkScrollableFrame(self, height=120, width=300, fg_color="#2b2b2b", border_width=1)
         self.isbn_dropdown = ctk.CTkScrollableFrame(self, height=120, width=300, fg_color="#2b2b2b", border_width=1)
 
-        # Search Bar & Action Bar (Combined)
+        # Khu vực kết hợp thanh tìm kiếm và các nút chức năng mở rộng
         search_frame_top = ctk.CTkFrame(self, fg_color="transparent")
         search_frame_top.pack(fill="x", pady=(0, 10), padx=5)
 
-        # Left Search Area
+        # Vùng tìm kiếm bên trái màn hình
         self.search_entry = ctk.CTkEntry(search_frame_top, placeholder_text="🔍 Tìm kiếm phiếu mượn (đang mượn & quá hạn)...", width=400)
         self.search_entry.pack(side="left", padx=(0, 10))
         self.search_entry.bind("<KeyRelease>", self.handle_search_realtime)
@@ -109,7 +123,7 @@ class BorrowView(ctk.CTkFrame):
         self.refresh_btn = ctk.CTkButton(search_frame_top, text="Làm mới", command=self.refresh_list, width=100)
         self.refresh_btn.pack(side="left")
 
-        # Right Action Area (Complete Green Return Button)
+        # Vùng nút chức năng bên phải màn hình (Nút trả sách được thiết kế màu xanh lá cây nổi bật)
         self.return_btn = ctk.CTkButton(
             search_frame_top, text="Trả Sách Đã Chọn", 
             command=self.handle_return_selected, 
@@ -118,7 +132,7 @@ class BorrowView(ctk.CTkFrame):
         )
         self.return_btn.pack(side="right")
 
-        # Tabs for Active and History
+        # Tạo hệ thống Tabs để chia lịch sử mượn trả thành các nhóm: Đang mượn, Quá hạn và Lịch sử
         self.tabs = ctk.CTkTabview(self)
         self.tabs.pack(fill="both", expand=True, padx=5, pady=5)
         
@@ -126,7 +140,7 @@ class BorrowView(ctk.CTkFrame):
         self.tab_overdue = self.tabs.add("Quá hạn")
         self.tab_history = self.tabs.add("Lịch sử")
         
-        # Data Tables
+        # Khởi tạo các Bảng dữ liệu (Data Tables) tương ứng cho từng Tab
         columns = ("id", "student_id", "isbn", "borrow_date", "due_date", "status")
         
         self.active_table = DataTable(self.tab_active, columns=columns)
@@ -157,14 +171,14 @@ class BorrowView(ctk.CTkFrame):
             table.tree.tag_configure("overdue", foreground="#f44336")
             table.tree.tag_configure("returned", foreground="#4caf50")
 
-        # Double-click to return books directly
+        # Kích hoạt tính năng click đúp chuột (Double-click) vào hàng dữ liệu để thực hiện trả sách nhanh chóng
         self.active_table.tree.bind("<Double-1>", self.on_row_double_click)
         self.overdue_table.tree.bind("<Double-1>", self.on_row_double_click)
         
         self.refresh_list()
 
     def on_row_double_click(self, event):
-        # Allow quick double click to return
+        # Cho phép người dùng click đúp chuột để thao tác trả sách nhanh mà không cần bấm nút "Trả Sách"
         current_tab = self.tabs.get()
         selected = None
         if current_tab == "Đang mượn":
@@ -315,7 +329,7 @@ class BorrowView(ctk.CTkFrame):
         slips = self.controller.search_slips(query)
         self.populate_lists(slips)
         
-        # When searching, direct the user to "Đang mượn" tab where combined results are loaded
+        # Khi thực hiện tìm kiếm, hệ thống sẽ tự động chuyển hướng người dùng sang tab "Đang mượn" - nơi hiển thị kết quả tìm kiếm gộp
         self.tabs.set("Đang mượn")
 
     def refresh_list(self):
@@ -337,13 +351,13 @@ class BorrowView(ctk.CTkFrame):
             row_data = (slip.id, slip.student_id, slip.book_isbn, slip.borrow_date, slip.expected_return_date, status_vn)
             
             if is_searching:
-                # If searching, put both Borrowed and Overdue into active_table for a combined view
+                # Nếu đang trong chế độ tìm kiếm, gộp cả 2 trạng thái "Đang mượn" và "Quá hạn" vào chung bảng active_table để hiển thị dễ dàng hơn
                 if slip.status in ["Borrowed", "Overdue"]:
                     self.active_table.insert(row_data, tags=(status_tag,))
                 else:
                     self.history_table.insert(row_data, tags=(status_tag,))
             else:
-                # Normal separated tabs view
+                # Nếu không tìm kiếm, phân loại và hiển thị dữ liệu bình thường theo từng tab riêng biệt
                 if slip.status == "Borrowed":
                     self.active_table.insert(row_data, tags=(status_tag,))
                 elif slip.status == "Overdue":

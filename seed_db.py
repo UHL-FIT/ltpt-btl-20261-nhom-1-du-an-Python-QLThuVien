@@ -1,3 +1,12 @@
+# ==============================================================================
+# Tệp: seed_db.py
+# Mục đích: Tập lệnh (Script) tự động tạo dữ liệu mẫu (mock data) cho hệ thống.
+# Chức năng:
+# - Xóa toàn bộ dữ liệu cũ trong cơ sở dữ liệu nếu đã tồn tại.
+# - Sử dụng thư viện Faker để sinh ra thông tin giả mạo nhưng chân thực (Tên người Việt, Email, SĐT).
+# - Tạo 1,000 Sinh viên, 100 Cuốn sách với mã ISBN thực tế, và 3,000 Phiếu mượn ngẫu nhiên.
+# - Rất hữu ích trong quá trình phát triển (development) và kiểm thử (testing).
+# ==============================================================================
 from database.db_manager import init_db, get_session
 from models.book import Book
 from models.borrow_slip import BorrowSlip
@@ -8,7 +17,12 @@ import datetime
 import random
 
 def seed_data():
+    # Hàm thực thi chính để xóa dữ liệu cũ và chèn dữ liệu mẫu mới vào cơ sở dữ liệu.
+    
+    # Bước 1: Khởi tạo database (đảm bảo các bảng đã được tạo)
     init_db()
+    
+    # Mở phiên làm việc
     session = get_session()
     
     # Check if data already exists

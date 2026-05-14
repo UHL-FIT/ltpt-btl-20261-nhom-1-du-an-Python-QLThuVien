@@ -1,18 +1,33 @@
+# ==============================================================================
+# Tệp: views/book_view.py
+# Mục đích: Xây dựng Giao diện (View) cho chức năng Quản lý Danh mục Sách.
+# Chức năng:
+# - Khởi tạo bố cục trang bao gồm thanh tìm kiếm, các nút hành động (thêm, sửa, xóa).
+# - Tạo bảng dữ liệu hiển thị danh sách tất cả các cuốn sách.
+# - Gọi trực tiếp đến BookController để truy vấn và cập nhật dữ liệu.
+# ==============================================================================
 import customtkinter as ctk
 from controllers.book_controller import BookController
 from tkinter import messagebox
 from views.components.data_table import DataTable
 
 class BookView(ctk.CTkFrame):
+    # Lớp giao diện hiển thị và thao tác với dữ liệu Sách.
+    # Kế thừa từ CTkFrame để có thể đặt (pack/grid) vào bên trong MainView.
+    
     def __init__(self, parent, on_refresh=None):
+        # Hàm khởi tạo: thiết lập controller và gọi hàm vẽ giao diện setup_ui()
         super().__init__(parent, fg_color="transparent")
         self.on_refresh = on_refresh
+        
+        # Khởi tạo instance của BookController để giao tiếp với cơ sở dữ liệu
         self.controller = BookController()
         
+        # Bắt đầu vẽ các thành phần UI
         self.setup_ui()
 
     def setup_ui(self):
-        # Header
+        # Khởi tạo phần tiêu đề (Header) của trang quản lý sách
         header = ctk.CTkLabel(
             self,
             text="Quản lý Danh mục Sách",
@@ -22,7 +37,7 @@ class BookView(ctk.CTkFrame):
         
 
 
-        # Search Bar & List Actions
+        # Khung chứa thanh tìm kiếm và các nút tính năng mở rộng (Thêm, Làm mới)
         search_frame = ctk.CTkFrame(self, fg_color="transparent")
         search_frame.pack(fill="x", pady=(0, 10), padx=5)
 
@@ -39,7 +54,7 @@ class BookView(ctk.CTkFrame):
         self.add_new_btn = ctk.CTkButton(search_frame, text="Thêm Mới", command=lambda: self.open_book_form(), width=100, fg_color="#4caf50", hover_color="#388e3c")
         self.add_new_btn.pack(side="left")
 
-        # Row level action placed on the right side of search bar for symmetrical ERP UI
+        # Nút xóa chức năng cấp độ hàng, được đặt ở bên phải của thanh tìm kiếm để tạo sự cân bằng đối xứng cho giao diện
         self.del_btn = ctk.CTkButton(
             search_frame, text="Xóa Sách Đã Chọn", 
             command=self.handle_delete, 
@@ -48,7 +63,7 @@ class BookView(ctk.CTkFrame):
         )
         self.del_btn.pack(side="right")
 
-        # Data Table Panel (Bottom)
+        # Khu vực chứa bảng dữ liệu (Data Table Panel) ở nửa dưới của giao diện
         self.table_frame = ctk.CTkFrame(self)
         self.table_frame.pack(fill="both", expand=True, padx=5, pady=(0, 5))
 
@@ -66,7 +81,7 @@ class BookView(ctk.CTkFrame):
         self.table.set_column_width("genre", 150)
         self.table.set_column_width("status", 100)
         
-        # Customize tags for status colors
+        # Tùy chỉnh màu sắc đánh dấu (tag) cho từng trạng thái của sách trong bảng
         self.table.tree.tag_configure("available", foreground="#4caf50") # Green
         self.table.tree.tag_configure("borrowed", foreground="#ff9800") # Orange
         

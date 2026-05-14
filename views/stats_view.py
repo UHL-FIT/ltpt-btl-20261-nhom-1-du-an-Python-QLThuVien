@@ -1,16 +1,30 @@
+# ==============================================================================
+# Tệp: views/stats_view.py
+# Mục đích: Xây dựng Giao diện (View) cho chức năng Thống kê & Phân tích (Dashboard Tổng hợp).
+# Chức năng:
+# - Lấy số liệu thống kê tổng quan từ DataAnalyzer (tổng số sách, sinh viên, lượt mượn...).
+# - Hiển thị các chỉ số (KPIs) lên các thẻ thông tin (Stat Cards).
+# - Vẽ và nhúng các biểu đồ Matplotlib vào giao diện Tkinter.
+# ==============================================================================
 import customtkinter as ctk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 from utils.analysis import DataAnalyzer
 
 class StatsView(ctk.CTkFrame):
+    # Lớp giao diện hiển thị bảng điều khiển thống kê thư viện.
+    # Kế thừa từ CTkFrame.
+    
     def __init__(self, parent, on_refresh=None):
+        # Khởi tạo giao diện thống kê
         super().__init__(parent, fg_color="transparent")
         self.on_refresh = on_refresh
+        
+        # Bắt đầu vẽ UI (không cần Controller riêng vì gọi thẳng DataAnalyzer)
         self.setup_ui()
 
     def setup_ui(self):
-        # Header with Scrollable Area for statistics (to fit everything nicely)
+        # Khu vực tiêu đề và vùng nội dung có thể cuộn (Scrollable Area) giúp đảm bảo hiển thị đủ toàn bộ biểu đồ trên các màn hình nhỏ
         scroll_container = ctk.CTkScrollableFrame(self, fg_color="transparent")
         scroll_container.pack(fill="both", expand=True)
 
@@ -20,33 +34,33 @@ class StatsView(ctk.CTkFrame):
         )
         header.pack(anchor="w", pady=(0, 20))
 
-        # Get Stats
+        # Truy xuất toàn bộ số liệu thống kê từ hệ thống phân tích DataAnalyzer
         stats = DataAnalyzer.get_library_stats()
 
-        # Analytics Cards Grid (8 Indicators, 2 rows of 4 cards)
+        # Lưới bố cục cho các thẻ thông tin (Analytics Cards). Được thiết kế bao gồm 8 chỉ số, chia làm 2 hàng ngang, mỗi hàng 4 thẻ.
         grid_frame = ctk.CTkFrame(scroll_container, fg_color="transparent")
         grid_frame.pack(fill="x", pady=(0, 20))
         grid_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
         
-        # Row 1
+        # Cấu hình hàng thứ 1 của lưới thẻ thông tin
         self.create_stat_card(grid_frame, "Tổng số sách", stats["total_books"], "#1f538d", 0, 0)
         self.create_stat_card(grid_frame, "Tổng số sinh viên", stats["total_students"], "#9c27b0", 0, 1)
         self.create_stat_card(grid_frame, "Tổng lượt mượn", stats["total_borrows"], "#4caf50", 0, 2)
         self.create_stat_card(grid_frame, "Tỷ lệ quá hạn", f"{stats['overdue_rate']}%", "#f44336", 0, 3)
         
-        # Row 2
+        # Cấu hình hàng thứ 2 của lưới thẻ thông tin
         self.create_stat_card(grid_frame, "Sách đang mượn", stats["borrowed_books"], "#ff9800", 1, 0)
         self.create_stat_card(grid_frame, "Sách sẵn có", stats["available_books"], "#00bcd4", 1, 1)
         self.create_stat_card(grid_frame, "Phiếu quá hạn", stats["overdue_count"], "#e91e63", 1, 2)
         self.create_stat_card(grid_frame, "Phiếu đã trả", stats["returned_count"], "#3f51b5", 1, 3)
 
-        # Charts Area (2x2 Grid)
+        # Khu vực hiển thị các Biểu đồ (Charts Area). Được bố cục theo cấu trúc Lưới 2x2.
         charts_frame = ctk.CTkFrame(scroll_container, fg_color="transparent")
         charts_frame.pack(fill="both", expand=True, padx=5, pady=5)
         charts_frame.grid_rowconfigure((0, 1), weight=1)
         charts_frame.grid_columnconfigure((0, 1), weight=1)
 
-        # 4 Chart containers
+        # Tạo 4 vùng chứa (container) độc lập cho 4 biểu đồ riêng biệt
         c1 = self.create_chart_container(charts_frame, 0, 0)
         c2 = self.create_chart_container(charts_frame, 0, 1)
         c3 = self.create_chart_container(charts_frame, 1, 0)
@@ -100,7 +114,7 @@ class StatsView(ctk.CTkFrame):
             self.show_no_data(parent, "Phân Bố Thể Loại Sách")
             return
 
-        # Get top 5 genres, group others
+        # Lấy ra Top 5 thể loại phổ biến nhất, các thể loại còn lại được cộng dồn vào mục "Khác"
         sorted_genres = sorted(genre_counts.items(), key=lambda x: x[1], reverse=True)
         top_genres = sorted_genres[:5]
         other_sum = sum(x[1] for x in sorted_genres[5:])

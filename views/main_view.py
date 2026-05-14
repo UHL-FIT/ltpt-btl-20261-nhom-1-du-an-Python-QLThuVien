@@ -1,3 +1,10 @@
+# ==============================================================================
+# Tệp: views/main_view.py
+# Mục đích: Định nghĩa giao diện chính (Dashboard) của phần mềm quản lý thư viện.
+# Chức năng:
+# - Tạo khung điều hướng (Sidebar) với các nút bấm chức năng.
+# - Dùng làm khung chứa (Container) để chuyển đổi giữa các màn hình (Views) khác nhau.
+# ==============================================================================
 import customtkinter as ctk
 from views.book_view import BookView
 from views.borrow_view import BorrowView
@@ -7,14 +14,23 @@ from utils.analysis import DataAnalyzer
 from tkinter import messagebox
 
 class MainView:
+    # Lớp giao diện điều hướng chính của ứng dụng.
+    
     def __init__(self, root):
+        # Lưu trữ đối tượng cửa sổ gốc
         self.root = root
+        
+        # Biến theo dõi view hiện tại đang hiển thị
         self.active_view = None
+        
+        # Khởi tạo giao diện
         self.setup_ui()
-        self.show_books()  # Default view, centered around data table
+        
+        # Hiển thị mặc định màn hình sách khi vừa bật app
+        self.show_books()
 
     def setup_ui(self):
-        # Sidebar
+        # Khởi tạo thanh điều hướng (Sidebar) ở bên trái màn hình
         self.sidebar = ctk.CTkFrame(self.root, width=240, corner_radius=0)
         self.sidebar.pack(side="left", fill="y")
 
@@ -25,14 +41,14 @@ class MainView:
         )
         self.logo_label.pack(pady=(30, 40))
 
-        # Navigation Buttons
+        # Khởi tạo các nút bấm chức năng trên thanh điều hướng
         self.books_btn = self.create_nav_btn("📚 Quản lý Sách", self.show_books)
         self.students_btn = self.create_nav_btn ("🎓 Quản lý Học sinh", self.show_students)
         self.borrow_btn = self.create_nav_btn("🔄 Quản lý Mượn Trả", self.show_borrowing)
         self.stats_btn = self.create_nav_btn("📊 Thống kê & Phân tích", self.show_stats)
         self.credit_btn = self.create_nav_btn("ℹ️ Giới thiệu", self.show_credit)
 
-        # Export Button at the bottom of sidebar
+        # Khởi tạo nút Xuất Dữ Liệu và đặt nó ở vị trí dưới cùng của thanh điều hướng
         self.export_btn = ctk.CTkButton(
             self.sidebar, text="Xuất dữ liệu ra Excel",
             fg_color="#1f538d", hover_color="#14375e",
@@ -40,7 +56,7 @@ class MainView:
         )
         self.export_btn.pack(side="bottom", pady=20, padx=20, fill="x")
 
-        # Main Content Area
+        # Khu vực hiển thị nội dung chính của ứng dụng (Main Content Area)
         self.content_area = ctk.CTkFrame(
             self.root, corner_radius=0, fg_color="transparent"
         )
@@ -60,11 +76,13 @@ class MainView:
         return btn
 
     def switch_view(self, view_class):
-        # Clear content area
+        # Hàm xử lý logic chuyển đổi giữa các màn hình (Views) khác nhau.
+        
+        # Bước 1: Xóa toàn bộ nội dung cũ trong khu vực hiển thị (content_area)
         for widget in self.content_area.winfo_children():
             widget.destroy()
 
-        # Instantiate new view and pack it
+        # Bước 2: Khởi tạo view mới từ class được truyền vào và gắn nó vào content_area
         self.active_view = view_class(self.content_area, on_refresh=None)
         self.active_view.pack(fill="both", expand=True)
 

@@ -1,18 +1,31 @@
+# ==============================================================================
+# Tệp: views/student_view.py
+# Mục đích: Cung cấp giao diện Quản lý Học sinh / Sinh viên (Độc giả).
+# Chức năng:
+# - Hiển thị danh sách sinh viên dưới dạng bảng.
+# - Cung cấp biểu mẫu (Form) để người dùng có thể Thêm hoặc Chỉnh sửa thông tin sinh viên.
+# ==============================================================================
 import customtkinter as ctk
 from controllers.student_controller import StudentController
 from tkinter import messagebox
 from views.components.data_table import DataTable
 
 class StudentView(ctk.CTkFrame):
+    # Lớp giao diện hiển thị và thao tác với dữ liệu Sinh viên/Độc giả.
+    
     def __init__(self, parent, on_refresh=None):
+        # Hàm khởi tạo: gắn view này vào view cha (parent)
         super().__init__(parent, fg_color="transparent")
         self.on_refresh = on_refresh
+        
+        # Khởi tạo controller để xử lý logic DB
         self.controller = StudentController()
         
+        # Bắt đầu vẽ UI
         self.setup_ui()
 
     def setup_ui(self):
-        # Header
+        # Khởi tạo phần tiêu đề (Header) của trang quản lý sinh viên
         header = ctk.CTkLabel(
             self,
             text="Quản lý Học sinh / Sinh viên",
@@ -22,7 +35,7 @@ class StudentView(ctk.CTkFrame):
         
 
 
-        # Search Bar & List Actions
+        # Khung chứa thanh tìm kiếm và các nút tính năng mở rộng (Thêm, Làm mới)
         search_frame = ctk.CTkFrame(self, fg_color="transparent")
         search_frame.pack(fill="x", pady=(0, 10), padx=5)
 
@@ -39,7 +52,7 @@ class StudentView(ctk.CTkFrame):
         self.add_new_btn = ctk.CTkButton(search_frame, text="Thêm Mới", command=lambda: self.open_student_form(), width=100, fg_color="#4caf50", hover_color="#388e3c")
         self.add_new_btn.pack(side="left")
 
-        # Row level action placed on the right side of search bar for symmetrical ERP UI
+        # Nút xóa được thiết kế nằm ở phía bên phải để giao diện trông cân xứng và chuyên nghiệp hơn
         self.del_btn = ctk.CTkButton(
             search_frame, text="Xóa SV Đã Chọn", 
             command=self.handle_delete, 
@@ -48,7 +61,7 @@ class StudentView(ctk.CTkFrame):
         )
         self.del_btn.pack(side="right")
 
-        # Data Table Panel (Bottom)
+        # Khung chứa bảng dữ liệu sinh viên hiển thị ở dưới cùng của giao diện
         self.table_frame = ctk.CTkFrame(self)
         self.table_frame.pack(fill="both", expand=True, padx=5, pady=(0, 5))
 

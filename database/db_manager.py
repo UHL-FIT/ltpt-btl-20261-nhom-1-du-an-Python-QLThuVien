@@ -1,24 +1,41 @@
+# ==============================================================================
+# Tệp: database/db_manager.py
+# Mục đích: Quản lý kết nối cơ sở dữ liệu SQLite, thiết lập các bảng và cấu hình.
+# Chức năng chính: 
+# - Tạo Engine kết nối tới file database cục bộ.
+# - Định nghĩa hàm remove_vietnamese_accents và đăng ký vào SQLite để cấu hình tính năng FTS5 hỗ trợ tiếng Việt.
+# ==============================================================================
 from unidecode import unidecode
 from sqlalchemy import create_engine, text, event
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 def remove_vietnamese_accents(text_val):
+    # Hàm loại bỏ dấu tiếng Việt từ chuỗi đầu vào.
+    # Sử dụng thư viện unidecode để chuyển "Tiếng Việt" thành "Tieng Viet".
+    # Nhờ hàm này, hệ thống hỗ trợ tìm kiếm không phân biệt dấu.
     if text_val is None:
         return ""
     return unidecode(str(text_val))
 
-Base = declarative_base()
-engine = create_engine('sqlite:///library.db')
+Base = declarative_base() # Lớp cơ sở cho các model SQLAlchemy
+engine = create_engine('sqlite:///library.db') # Tạo engine kết nối tới file database SQLite 'library.db'
 
 @event.listens_for(engine, "connect")
 def receive_connect(dbapi_connection, connection_record):
+    # Sự kiện kích hoạt ngay khi mở kết nối với CSDL SQLite.
+    # Đăng ký hàm Python 'remove_vietnamese_accents' dưới dạng một hàm SQL tên là 'unaccent'.
     dbapi_connection.create_function("unaccent", 1, remove_vietnamese_accents)
 
-Session = sessionmaker(bind=engine)
+Session = sessionmaker(bind=engine) # Tạo nhà máy (factory) sinh ra các phiên làm việc (session) với CSDL
 
 def setup_fts(connection):
-    # Setup FTS5 for books
+    # Hàm thiết lập Full-Text Search (FTS5) cho các bảng books, students, và borrow_slips.
+    # Logic: 
+    # - Tạo các bảng ảo (virtual table) chứa dữ liệu không dấu.
+    # - Tạo các Trigger (AFTER INSERT, AFTER UPDATE, AFTER DELETE) để luôn đồng bộ bảng ảo với bảng gốc.
+    
+    # Cài đặt FTS5 cho bảng books (Sách)
     connection.execute(text('''
         CREATE VIRTUAL TABLE IF NOT EXISTS books_fts USING fts5(
             isbn, name, genre,
@@ -101,7 +118,7 @@ def setup_fts(connection):
         END;
     '''))
     
-    # Rebuild standalone FTS tables
+    # Làm mới lại dữ liệu trong các bảng FTS độc lập
     connection.execute(text("DELETE FROM books_fts;"))
     connection.execute(text('''
         INSERT INTO books_fts(rowid, isbn, name, genre) 
@@ -121,12 +138,20 @@ def setup_fts(connection):
     '''))
 
 def init_db():
+    # Hàm khởi tạo cơ sở dữ liệu, tự động tạo cấu trúc các bảng.
+    
+    # Import các file models để SQLAlchemy tự động đăng ký schema của các bảng đó
     import models.book
     import models.borrow_slip
     import models.student
+    
+    # Thực thi lệnh CREATE TABLE cho tất cả model kế thừa từ Base
     Base.metadata.create_all(engine)
+    
+    # Mở một giao dịch (transaction) để chạy thiết lập FTS
     with engine.begin() as conn:
         setup_fts(conn)
 
 def get_session():
+    # Hàm tiện ích tạo và trả về một phiên làm việc (Session) mới với cơ sở dữ liệu.
     return Session()
