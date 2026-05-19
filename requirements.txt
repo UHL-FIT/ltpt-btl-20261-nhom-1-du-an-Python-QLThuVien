@@ -6,3 +6,4 @@ sqlalchemy
 numpy
 unidecode
 tkcalendar
+faker
