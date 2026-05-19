@@ -9,6 +9,7 @@ from unidecode import unidecode
 from sqlalchemy import create_engine, text, event
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 
 def remove_vietnamese_accents(text_val):
     # Hàm loại bỏ dấu tiếng Việt từ chuỗi đầu vào.
@@ -19,7 +20,7 @@ def remove_vietnamese_accents(text_val):
     return unidecode(str(text_val))
 
 Base = declarative_base() # Lớp cơ sở cho các model SQLAlchemy
-engine = create_engine('sqlite:///library.db', pool_size=10, max_overflow=20) # Tạo engine kết nối tới file database SQLite 'library.db'
+engine = create_engine('sqlite:///library.db', poolclass=NullPool, connect_args={'check_same_thread': False}) # Tạo engine kết nối tới file database SQLite 'library.db'
 
 @event.listens_for(engine, "connect")
 def receive_connect(dbapi_connection, connection_record):
