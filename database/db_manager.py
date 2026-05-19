@@ -19,7 +19,7 @@ def remove_vietnamese_accents(text_val):
     return unidecode(str(text_val))
 
 Base = declarative_base() # Lớp cơ sở cho các model SQLAlchemy
-engine = create_engine('sqlite:///library.db') # Tạo engine kết nối tới file database SQLite 'library.db'
+engine = create_engine('sqlite:///library.db', pool_size=10, max_overflow=20) # Tạo engine kết nối tới file database SQLite 'library.db'
 
 @event.listens_for(engine, "connect")
 def receive_connect(dbapi_connection, connection_record):
