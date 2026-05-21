@@ -96,14 +96,39 @@ class BorrowController:
             return True
         return False
 
+    def check_and_update_overdue(self):
+        """
+        Quét toàn bộ phiếu mượn đang ở trạng thái 'Borrowed' (Đang mượn)
+        nhưng có expected_return_date nhỏ hơn ngày hiện tại,
+        và cập nhật trạng thái của chúng thành 'Overdue' (Quá hạn).
+        """
+        session = get_session()
+        today = datetime.date.today()
+        overdue_slips = session.query(BorrowSlip).filter(
+            BorrowSlip.status == "Borrowed",
+            BorrowSlip.expected_return_date < today
+        ).all()
+        
+        if overdue_slips:
+            try:
+                for slip in overdue_slips:
+                    slip.status = "Overdue"
+                session.commit()
+            except Exception as e:
+                session.rollback()
+                print("Lỗi khi cập nhật trạng thái quá hạn:", e)
+        session.close()
+
     def get_active_slips(self):
         """Lấy danh sách các phiếu mượn đang hoạt động (chưa trả sách)."""
+        self.check_and_update_overdue()
         session = get_session()
         slips = session.query(BorrowSlip).filter(BorrowSlip.status == "Borrowed").all()
         return slips
 
     def get_history_slips(self):
         """Lấy lịch sử các phiếu mượn (đã trả hoặc quá hạn)."""
+        self.check_and_update_overdue()
         session = get_session()
         from sqlalchemy import or_
         slips = session.query(BorrowSlip).filter(or_(BorrowSlip.status == "Returned", BorrowSlip.status == "Overdue")).all()
@@ -114,6 +139,7 @@ class BorrowController:
         Tìm kiếm phiếu mượn bằng FTS5 (Full-Text Search).
         Hỗ trợ tìm kiếm không phân biệt dấu.
         """
+        self.check_and_update_overdue()
         from sqlalchemy import text
         from database.db_manager import remove_vietnamese_accents
         session = get_session()
@@ -133,3 +159,4 @@ class BorrowController:
         slips = session.query(BorrowSlip).filter(BorrowSlip.id.in_(slip_ids)).all()
         session.close()
         return slips
+

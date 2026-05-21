@@ -1,0 +1,63 @@
+# =========================
+# Môi trường ảo (Virtual Env)
+# =========================
+.venv/
+venv/
+env/
+.env
+
+# =========================
+# Bộ nhớ đệm của Python
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# =========================
+# Cơ sở dữ liệu và dữ liệu chạy cục bộ
+# =========================
+*.db
+*.sqlite3
+library.db
+
+# =========================
+# File xuất (Export)
+# =========================
+*.xlsx
+*.csv
+Library_Report.xlsx
+
+# =========================
+# File cấu hình IDE & OS
+# =========================
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# =========================
+# Logs và các file sinh ra lúc runtime
+# =========================
+*.log
+
+# =========================
+# Thư mục build/packaging của Python (nếu có)
+# =========================
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg

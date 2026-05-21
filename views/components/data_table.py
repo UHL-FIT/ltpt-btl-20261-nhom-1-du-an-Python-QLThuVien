@@ -24,11 +24,11 @@ class DataTable(ctk.CTkFrame):
         self.style = ttk.Style(self)
         self.style.theme_use("default")
         
-        # Basic Colors
-        bg_color = "#2b2b2b"
-        fg_color = "#ffffff"
-        selected_bg = "#1f538d"
-        header_bg = "#1f1f1f"
+        # Basic Colors (Slate Dark Theme)
+        bg_color = "#1e293b"      # slate-800
+        fg_color = "#f8fafc"      # slate-50
+        selected_bg = "#3b82f6"   # blue-500
+        header_bg = "#0f172a"     # slate-900
         
         self.style.configure("Treeview",
                              background=bg_color,
@@ -36,7 +36,7 @@ class DataTable(ctk.CTkFrame):
                              fieldbackground=bg_color,
                              borderwidth=0,
                              rowheight=35,
-                             font=("Inter", 11))
+                             font=("Segoe UI", 11))
                              
         self.style.map("Treeview",
                        background=[("selected", selected_bg)])
@@ -45,10 +45,10 @@ class DataTable(ctk.CTkFrame):
                              background=header_bg,
                              foreground=fg_color,
                              borderwidth=0,
-                             font=("Inter", 12, "bold"))
+                             font=("Segoe UI", 11, "bold"))
                              
         self.style.map("Treeview.Heading",
-                       background=[("active", "#333333")])
+                       background=[("active", "#1e293b")])
 
         # Create Treeview
         self.tree = ttk.Treeview(self, columns=columns, show="headings", selectmode="browse")
@@ -62,9 +62,66 @@ class DataTable(ctk.CTkFrame):
         self.scrollbar.grid(row=0, column=1, sticky="ns")
         
         # Setup Headings
+        self.columns = columns
         for col in columns:
-            self.tree.heading(col, text=col.title())
+            self.tree.heading(col, text=col.title(), command=lambda c=col: self.sort_by(c, False))
             self.tree.column(col, width=100, anchor="w")
+
+    def sort_by(self, col, reverse):
+        # Lấy tất cả id các dòng trong bảng
+        items = self.tree.get_children("")
+        if not items:
+            return
+            
+        # Thu thập dữ liệu của cột cần sắp xếp kèm theo item ID tương ứng
+        data = []
+        for item in items:
+            val = self.tree.set(item, col)
+            data.append((val, item))
+            
+        # Hàm xác định khóa sắp xếp thông minh theo kiểu dữ liệu
+        def get_sort_key(element):
+            val = element[0]
+            val_str = str(val).strip()
+            if not val_str:
+                return (0, "")
+                
+            # Thử parse số nguyên
+            try:
+                return (1, int(val_str))
+            except ValueError:
+                pass
+                
+            # Thử parse số thực
+            try:
+                return (2, float(val_str))
+            except ValueError:
+                pass
+                
+            # Trả về chữ thường để sắp xếp không phân biệt hoa thường
+            return (3, val_str.lower())
+            
+        data.sort(key=get_sort_key, reverse=reverse)
+        
+        # Sắp xếp lại thứ tự hiển thị trong Treeview
+        for index, (_, item) in enumerate(data):
+            self.tree.move(item, "", index)
+            
+        # Đổi hành động click kế tiếp để đảo ngược chiều sắp xếp
+        self.tree.heading(col, command=lambda c=col: self.sort_by(c, not reverse))
+        
+        # Cập nhật ký hiệu mũi tên (▲/▼) trên các cột
+        for c in self.columns:
+            current_text = self.tree.heading(c, "text")
+            # Xóa các mũi tên cũ nếu có
+            if current_text.endswith(" ▲") or current_text.endswith(" ▼"):
+                current_text = current_text[:-2]
+                
+            if c == col:
+                arrow = " ▼" if reverse else " ▲"
+                self.tree.heading(c, text=current_text + arrow)
+            else:
+                self.tree.heading(c, text=current_text)
 
     def insert(self, values, tags=()):
         self.tree.insert("", "end", values=values, tags=tags)

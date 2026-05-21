@@ -9,6 +9,7 @@ import pandas as pd
 from database.db_manager import get_session
 from models.book import Book
 from models.borrow_slip import BorrowSlip
+from models.student import Student
 from datetime import date
 
 
@@ -20,83 +21,217 @@ class DataAnalyzer:
         # Hàm tính toán và đóng gói một loạt các số liệu thống kê.
         # Trả về một đối tượng Dictionary chứa các cặp key-value để hiển thị lên Dashboard.
         
-        from models.student import Student
         session = get_session()
         
-        total_books = session.query(Book).count()
-        total_students = session.query(Student).count()
+        # 1. Tải toàn bộ dữ liệu từ CSDL
+        books = session.query(Book).all()
+        students = session.query(Student).all()
+        slips = session.query(BorrowSlip).all()
+        session.close()
         
-        # Sách đang mượn vs Sẵn có
-        borrowed_books = session.query(Book).filter(Book.status == "Borrowed").count()
-        available_books = total_books - borrowed_books
+        total_books = len(books)
+        total_students = len(students)
+        
+        # Tạo mapping để tra cứu nhanh thông tin
+        student_map = {str(s.student_id): str(s.name) for s in students}
+        book_map = {str(b.isbn): {"name": str(b.name), "genre": str(b.genre), "status": str(b.status)} for b in books}
+        
+        # Sách đang mượn vs Sẵn có vs Hư hỏng
+        borrowed_books = sum(1 for b in books if b.status == "Borrowed")
+        damaged_books = sum(1 for b in books if b.status == "Damaged")
+        available_books = total_books - borrowed_books - damaged_books
         
         # Phân bố thể loại sách
-        genres_data = session.query(Book.genre).all()
-        genres_counts = {}
-        for g in genres_data:
-            if g[0]:
-                genres_counts[g[0]] = genres_counts.get(g[0], 0) + 1
-            
-        slips = session.query(BorrowSlip).all()
-        if not slips:
-            session.close()
-            return {
-                "total_books": total_books,
-                "total_students": total_students,
-                "borrowed_books": borrowed_books,
-                "available_books": available_books,
-                "total_borrows": 0,
-                "overdue_rate": 0,
-                "overdue_count": 0,
-                "returned_count": 0,
-                "popular_books": [],
-                "genre_counts": genres_counts,
-                "borrows_by_month": {}
-            }
+        genre_counts = {}
+        for b in books:
+            if b.genre:
+                genre_counts[b.genre] = genre_counts.get(b.genre, 0) + 1
+                
+        # Khởi tạo các giá trị mặc định cho thống kê phiếu mượn nếu chưa có phiếu nào
+        default_stats = {
+            "total_books": total_books,
+            "total_students": total_students,
+            "borrowed_books": borrowed_books,
+            "available_books": available_books,
+            "damaged_books": damaged_books,
+            "total_borrows": 0,
+            "overdue_rate": 0,
+            "overdue_count": 0,
+            "returned_count": 0,
+            "popular_books": [],
+            "genre_counts": genre_counts,
+            "borrows_by_month": {},
+            "top_students": [],
+            "slip_status_counts": {"Borrowed": 0, "Returned": 0, "Overdue": 0},
+            "return_punctuality": {"OnTime": 0, "Late": 0},
+            "fine_trend": {},
+            "borrow_by_weekday": {"Thứ 2": 0, "Thứ 3": 0, "Thứ 4": 0, "Thứ 5": 0, "Thứ 6": 0, "Thứ 7": 0, "Chủ Nhật": 0},
+            "borrow_by_genre": {},
+            "avg_duration_by_genre": {},
+            "duration_distribution": {"< 7 ngày": 0, "7-14 ngày": 0, "14-30 ngày": 0, "> 30 ngày": 0},
+            "available_by_genre": {},
+            "most_overdue_books": []
+        }
         
+        if not slips:
+            return default_stats
+            
+        # Chuyển đổi phiếu mượn thành DataFrame để phân tích bằng Pandas
         df_slips = pd.DataFrame([{
+            'id': s.id,
+            'student_id': s.student_id,
             'isbn': s.book_isbn,
-            'status': s.status,
             'borrow_date': s.borrow_date,
-            'expected_return': s.expected_return_date
+            'expected_return': s.expected_return_date,
+            'actual_return': s.actual_return_date,
+            'status': s.status
         } for s in slips])
         
         # Top 5 sách mượn nhiều nhất
         most_borrowed = df_slips['isbn'].value_counts().head(5)
-        popular_books = []
-        for isbn, count in most_borrowed.items():
-            book = session.query(Book).filter_by(isbn=isbn).first()
-            popular_books.append({"name": book.name if book else isbn, "count": count})
-            
-        # Tính toán Quá hạn & Đã trả
-        overdue_count = len(df_slips[df_slips['status'] == 'Overdue'])
-        returned_count = len(df_slips[df_slips['status'] == 'Returned'])
+        popular_books = [{"name": book_map.get(str(isbn), {}).get("name", str(isbn)), "count": int(count)} 
+                         for isbn, count in most_borrowed.items()]
+                         
+        # Độc giả mượn sách nhiều nhất (Top 5)
+        most_active = df_slips['student_id'].value_counts().head(5)
+        top_students = [{"name": student_map.get(str(sid), f"SV {sid}"), "count": int(count)} 
+                        for sid, count in most_active.items()]
+                        
+        # Số lượng phiếu mượn theo trạng thái
+        status_counts = df_slips['status'].value_counts()
+        slip_status_counts = {
+            "Borrowed": int(status_counts.get("Borrowed", 0)),
+            "Returned": int(status_counts.get("Returned", 0)),
+            "Overdue": int(status_counts.get("Overdue", 0))
+        }
+        
+        # Tính toán tỷ lệ trễ hạn & số phiếu quá hạn
+        overdue_count = slip_status_counts["Overdue"]
+        returned_count = slip_status_counts["Returned"]
         
         today = date.today()
         today_dt = pd.to_datetime(today)
         currently_late = len(df_slips[(df_slips['status'] == 'Borrowed') & (pd.to_datetime(df_slips['expected_return']) < today_dt)])
-        total_overdue = overdue_count + currently_late
-        overdue_rate = (total_overdue / len(df_slips)) * 100 if len(df_slips) > 0 else 0
+        total_overdue_count = overdue_count + currently_late
+        overdue_rate = (total_overdue_count / len(df_slips)) * 100
         
+        # Tỷ lệ trả sách đúng hạn vs trễ hạn (trong số các phiếu đã trả)
+        df_returned = df_slips[df_slips['status'] == 'Returned'].copy()
+        if len(df_returned) > 0:
+            df_returned['is_late'] = pd.to_datetime(df_returned['actual_return']) > pd.to_datetime(df_returned['expected_return'])
+            late_count = int(df_returned['is_late'].sum()) # type: ignore
+            on_time_count = len(df_returned) - late_count
+        else:
+            late_count = 0
+            on_time_count = 0
+        return_punctuality = {"OnTime": on_time_count, "Late": late_count}
+        
+        # Xu hướng tiền phạt phát sinh theo tháng (6 tháng gần nhất)
+        # Phạt 5.000 VNĐ / ngày quá hạn
+        def calc_fine(row):
+            expected = pd.to_datetime(row['expected_return'])
+            if row['status'] == 'Returned' and row['actual_return']:
+                actual = pd.to_datetime(row['actual_return'])
+                if actual > expected:
+                    return (actual - expected).days * 5000
+            elif row['status'] == 'Overdue' or (row['status'] == 'Borrowed' and today_dt > expected):
+                return (today_dt - expected).days * 5000
+            return 0
+            
+        df_slips['fine'] = df_slips.apply(calc_fine, axis=1)
+        df_slips['month'] = df_slips['borrow_date'].astype(str).str[:7]
+        fine_by_month = df_slips.groupby('month')['fine'].sum().sort_index().tail(6)
+        fine_trend = {str(m): float(val) for m, val in fine_by_month.items()}
+        
+        # Tần suất mượn sách theo ngày trong tuần (Thứ 2 - Chủ Nhật)
+        df_slips['weekday'] = pd.to_datetime(df_slips['borrow_date']).dt.dayofweek # type: ignore
+        weekday_counts = df_slips['weekday'].value_counts().sort_index()
+        weekday_names = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ Nhật"]
+        borrow_by_weekday = {weekday_names[int(w)]: int(cnt) for w, cnt in weekday_counts.items() if 0 <= int(w) < 7}# type: ignore
+        for name in weekday_names:
+            if name not in borrow_by_weekday:
+                borrow_by_weekday[name] = 0
+                
+        # Lượt mượn sách theo thể loại
+        df_slips['genre'] = df_slips['isbn'].map(lambda x: book_map.get(str(x), {}).get("genre", "Không xác định"))
+        genre_borrow_counts = df_slips['genre'].value_counts()
+        borrow_by_genre = {str(g): int(cnt) for g, cnt in genre_borrow_counts.items()}
+        
+        # Thời gian mượn trung bình theo thể loại (chỉ tính phiếu đã trả)
+        df_ret = df_slips[(df_slips['status'] == 'Returned') & (df_slips['actual_return'].notna())].copy()
+        if len(df_ret) > 0:
+            df_ret['duration'] = (pd.to_datetime(df_ret['actual_return']) - pd.to_datetime(df_ret['borrow_date'])).dt.days # type: ignore
+            df_ret['genre'] = df_ret['isbn'].map(lambda x: book_map.get(str(x), {}).get("genre", "Không xác định"))
+            avg_dur = df_ret.groupby('genre')['duration'].mean()
+            avg_duration_by_genre = {str(g): round(float(v), 1) for g, v in avg_dur.items()}
+        else:
+            avg_duration_by_genre = {}
+            
+        # Phân bố số ngày mượn thực tế (chỉ tính phiếu đã trả)
+        duration_distribution = {"< 7 ngày": 0, "7-14 ngày": 0, "14-30 ngày": 0, "> 30 ngày": 0}
+        if len(df_ret) > 0:
+            durations = (pd.to_datetime(df_ret['actual_return']) - pd.to_datetime(df_ret['borrow_date'])).dt.days # type: ignore
+            for d in durations:
+                if d < 7:
+                     duration_distribution["< 7 ngày"] += 1
+                elif d <= 14:
+                     duration_distribution["7-14 ngày"] += 1
+                elif d <= 30:
+                     duration_distribution["14-30 ngày"] += 1
+                else:
+                     duration_distribution["> 30 ngày"] += 1
+                     
+        # Số lượng sách có sẵn trong kho theo thể loại
+        available_by_genre = {}
+        for b in books:
+            if b.status == "Available" and b.genre:
+                available_by_genre[b.genre] = available_by_genre.get(b.genre, 0) + 1
+                
+        # Top 5 sách bị quá hạn nhiều nhất (đang quá hạn hoặc từng bị trả trễ hạn)
+        def check_ever_overdue(row):
+            if row['status'] == 'Overdue':
+                return True
+            expected = pd.to_datetime(row['expected_return'])
+            if row['status'] == 'Returned' and row['actual_return']:
+                actual = pd.to_datetime(row['actual_return'])
+                if actual > expected:
+                    return True
+            return False
+            
+        df_slips['ever_overdue'] = df_slips.apply(check_ever_overdue, axis=1)
+        df_overdue_slips = df_slips[df_slips['ever_overdue']]
+        overdue_book_counts = df_overdue_slips['isbn'].value_counts().head(5)
+        most_overdue_books = [{"name": book_map.get(str(isbn), {}).get("name", str(isbn)), "count": int(count)} 
+                               for isbn, count in overdue_book_counts.items()]
+                               
         # Lượt mượn theo tháng (6 tháng gần nhất)
         df_slips['month'] = df_slips['borrow_date'].astype(str).str[:7]
         monthly_counts = df_slips['month'].value_counts().sort_index().tail(6)
-        borrows_by_month = {str(m): val for m, val in monthly_counts.items()}
-        
-        session.close()
+        borrows_by_month = {str(m): int(val) for m, val in monthly_counts.items()}
         
         return {
             "total_books": total_books,
             "total_students": total_students,
             "borrowed_books": borrowed_books,
             "available_books": available_books,
+            "damaged_books": damaged_books,
             "total_borrows": len(df_slips),
             "overdue_rate": round(overdue_rate, 2),
-            "overdue_count": total_overdue,
+            "overdue_count": total_overdue_count,
             "returned_count": returned_count,
             "popular_books": popular_books,
-            "genre_counts": genres_counts,
-            "borrows_by_month": borrows_by_month
+            "genre_counts": genre_counts,
+            "borrows_by_month": borrows_by_month,
+            "top_students": top_students,
+            "slip_status_counts": slip_status_counts,
+            "return_punctuality": return_punctuality,
+            "fine_trend": fine_trend,
+            "borrow_by_weekday": borrow_by_weekday,
+            "borrow_by_genre": borrow_by_genre,
+            "avg_duration_by_genre": avg_duration_by_genre,
+            "duration_distribution": duration_distribution,
+            "available_by_genre": available_by_genre,
+            "most_overdue_books": most_overdue_books
         }
 
     @staticmethod

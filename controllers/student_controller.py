@@ -13,6 +13,74 @@ from sqlalchemy import text
 class StudentController:
     # Lớp điều khiển xử lý logic riêng biệt của mô đun Sinh viên.
     
+    def import_students_from_df(self, df):
+        """
+        Import sinh viên hàng loạt từ DataFrame pandas.
+        Trả về: (success_count, skipped_count, error_msg)
+        """
+        import pandas as pd
+        # Chuẩn hóa tên cột
+        id_col = None
+        name_col = None
+        email_col = None
+        phone_col = None
+        
+        for col in df.columns:
+            c_low = str(col).lower().strip()
+            if "student_id" in c_low or "mã sv" in c_low or "ma sv" in c_low or "mã sinh viên" in c_low or "ma sinh vien" in c_low or "mã số" in c_low or "ma so" in c_low or "id" == c_low:
+                id_col = col
+            elif "họ tên" in c_low or "ho ten" in c_low or "tên" in c_low or "ten" in c_low or "name" in c_low or "họ và tên" in c_low or "ho va ten" in c_low:
+                name_col = col
+            elif "email" in c_low or "thư điện tử" in c_low or "thu dien tu" in c_low:
+                email_col = col
+            elif "phone" in c_low or "sđt" in c_low or "sdt" in c_low or "điện thoại" in c_low or "dien thoai" in c_low or "số đt" in c_low or "so dt" in c_low:
+                phone_col = col
+                
+        if not id_col or not name_col:
+            return 0, 0, "Không tìm thấy cột 'Mã SV' hoặc 'Họ Tên' hợp lệ trong tệp Excel."
+            
+        session = get_session()
+        success_count = 0
+        skipped_count = 0
+        try:
+            # Lấy tập hợp student_id hiện có để kiểm tra trùng lặp nhanh
+            existing_ids = {s[0] for s in session.query(Student.student_id).all()}
+            
+            for _, row in df.iterrows():
+                sid = str(row[id_col]).strip()
+                name = str(row[name_col]).strip()
+                email = str(row[email_col]).strip() if (email_col and pd.notna(row[email_col])) else ""
+                phone = str(row[phone_col]).strip() if (phone_col and pd.notna(row[phone_col])) else ""
+                
+                # Định dạng số điện thoại nếu cần (bỏ số thập phân từ excel nếu có)
+                if phone.endswith(".0"):
+                    phone = phone[:-2]
+                if sid.endswith(".0"):
+                    sid = sid[:-2]
+                
+                # Bỏ qua các hàng trống mã hoặc tên
+                if not sid or sid == "nan" or not name or name == "nan":
+                    skipped_count += 1
+                    continue
+                    
+                if sid in existing_ids:
+                    skipped_count += 1
+                    continue
+                    
+                # Tạo student mới
+                new_student = Student(student_id=sid, name=name, email=email if email != "nan" else "", phone=phone if phone != "nan" else "")
+                session.add(new_student)
+                existing_ids.add(sid)
+                success_count += 1
+                
+            session.commit()
+            return success_count, skipped_count, None
+        except Exception as e:
+            session.rollback()
+            return 0, 0, str(e)
+        finally:
+            session.close()
+
     def add_student(self, student_id, name, email, phone):
         # Hàm khởi tạo và thêm một sinh viên mới.
         

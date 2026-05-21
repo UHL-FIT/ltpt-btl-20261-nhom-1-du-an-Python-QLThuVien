@@ -9,7 +9,7 @@ import customtkinter as ctk
 from controllers.borrow_controller import BorrowController
 from controllers.student_controller import StudentController
 from controllers.book_controller import BookController
-from tkinter import messagebox
+from views.components.custom_dialog import show_custom_info, show_custom_error, show_custom_warning, show_custom_askyesno
 from views.components.data_table import DataTable
 
 class BorrowView(ctk.CTkFrame):
@@ -38,28 +38,28 @@ class BorrowView(ctk.CTkFrame):
         header.pack(anchor="w", pady=(0, 20))
         
         # Khu vực nhập liệu (Action Panel) nằm ở phía trên cùng của giao diện
-        self.action_frame = ctk.CTkFrame(self)
+        self.action_frame = ctk.CTkFrame(self, fg_color="#1e293b", corner_radius=12)
         self.action_frame.pack(fill="x", pady=(0, 20), padx=5)
         
         self.action_frame.grid_columnconfigure((1, 3, 5), weight=1)
 
-        ctk.CTkLabel(self.action_frame, text="Mã sinh viên:").grid(row=0, column=0, padx=10, pady=15, sticky="w")
-        self.student_entry = ctk.CTkEntry(self.action_frame, placeholder_text="Mã sinh viên")
+        ctk.CTkLabel(self.action_frame, text="Mã sinh viên:").grid(row=0, column=0, padx=15, pady=15, sticky="w")
+        self.student_entry = ctk.CTkEntry(self.action_frame, placeholder_text="Mã sinh viên", fg_color="#0f172a", border_color="#475569")
         self.student_entry.grid(row=0, column=1, padx=10, pady=15, sticky="ew")
         self.student_entry.bind("<KeyRelease>", self.handle_student_typing)
         
-        ctk.CTkLabel(self.action_frame, text="Mã sách (ISBN):").grid(row=0, column=2, padx=10, pady=15, sticky="w")
-        self.isbn_entry = ctk.CTkEntry(self.action_frame, placeholder_text="Mã sách (ISBN)")
+        ctk.CTkLabel(self.action_frame, text="Mã sách (ISBN):").grid(row=0, column=2, padx=15, pady=15, sticky="w")
+        self.isbn_entry = ctk.CTkEntry(self.action_frame, placeholder_text="Mã sách (ISBN)", fg_color="#0f172a", border_color="#475569")
         self.isbn_entry.grid(row=0, column=3, padx=10, pady=15, sticky="ew")
         self.isbn_entry.bind("<KeyRelease>", self.handle_isbn_typing)
         
-        ctk.CTkLabel(self.action_frame, text="Hạn trả dự kiến:").grid(row=0, column=4, padx=10, pady=15, sticky="w")
+        ctk.CTkLabel(self.action_frame, text="Hạn trả dự kiến:").grid(row=0, column=4, padx=15, pady=15, sticky="w")
         
         # Tùy chỉnh giao diện DateEntry bên trong một CTkFrame để tạo cảm giác giống với CTkEntry nguyên bản của CustomTkinter
         self.date_frame = ctk.CTkFrame(
             self.action_frame, 
-            fg_color="#343638", 
-            border_color="#565B5E", 
+            fg_color="#0f172a", 
+            border_color="#475569", 
             border_width=1, 
             corner_radius=6,
             height=30
@@ -71,69 +71,91 @@ class BorrowView(ctk.CTkFrame):
         self.due_date_entry = DateEntry(
             self.date_frame,
             width=12,
-            background='#1f538d',          # Calendar Header Background (Dark Blue)
+            background='#3b82f6',          # Calendar Header Background (Blue)
             foreground='white',             # Calendar Header Text
-            headersbackground='#2b2b2b',     # Calendar Weekday Headers
+            headersbackground='#0f172a',     # Calendar Weekday Headers
             headersforeground='#DCE4EE',     # Weekday text
-            selectbackground='#1f538d',     # Selected Day highlight
+            selectbackground='#3b82f6',     # Selected Day highlight
             selectforeground='white',
             
             # Entry text area styling matching CTkEntry properties
-            bg='#343638',                   
+            bg='#0f172a',                   
             fg='#DCE4EE',                   
             insertbackground='#DCE4EE',     
             relief='flat',
             borderwidth=0,
             
             # Dropdown Calendar look and feel (Premium Dark Theme)
-            normalbackground='#2b2b2b',     
+            normalbackground='#1e293b',     
             normalforeground='#DCE4EE',     
-            weekendbackground='#202020',    
+            weekendbackground='#111827',    
             weekendforeground='#ff7043',    
-            othermonthbackground='#1c1c1c', 
+            othermonthbackground='#0f172a', 
             othermonthforeground='#555555', 
             
             date_pattern='yyyy-mm-dd',
-            font=("Inter", 11)
+            font=("Segoe UI", 11)
         )
         self.due_date_entry.pack(fill="both", expand=True, padx=8, pady=3)
         
         btn_frame = ctk.CTkFrame(self.action_frame, fg_color="transparent")
-        btn_frame.grid(row=0, column=6, padx=10, pady=15, sticky="e")
+        btn_frame.grid(row=0, column=6, padx=15, pady=15, sticky="e")
 
-        self.issue_btn = ctk.CTkButton(btn_frame, text="Cho Mượn", command=self.handle_borrow, width=100)
+        self.issue_btn = ctk.CTkButton(
+            btn_frame, text="Cho Mượn", command=self.handle_borrow, width=100,
+            fg_color="#3b82f6", hover_color="#2563eb", font=ctk.CTkFont(weight="bold")
+        )
         self.issue_btn.pack(side="left", padx=(0, 10))
         
         # Khung xổ xuống (Dropdown) chứa các gợi ý tìm kiếm. Được đặt trực tiếp trên giao diện gốc (self) để có thể hiển thị đè lên các tab bên dưới.
-        self.student_dropdown = ctk.CTkScrollableFrame(self, height=120, width=300, fg_color="#2b2b2b", border_width=1)
-        self.isbn_dropdown = ctk.CTkScrollableFrame(self, height=120, width=300, fg_color="#2b2b2b", border_width=1)
+        self.student_dropdown = ctk.CTkScrollableFrame(self, height=120, width=300, fg_color="#1e293b", border_width=1, border_color="#475569")
+        self.isbn_dropdown = ctk.CTkScrollableFrame(self, height=120, width=300, fg_color="#1e293b", border_width=1, border_color="#475569")
 
         # Khu vực kết hợp thanh tìm kiếm và các nút chức năng mở rộng
         search_frame_top = ctk.CTkFrame(self, fg_color="transparent")
         search_frame_top.pack(fill="x", pady=(0, 10), padx=5)
 
         # Vùng tìm kiếm bên trái màn hình
-        self.search_entry = ctk.CTkEntry(search_frame_top, placeholder_text="🔍 Tìm kiếm phiếu mượn (đang mượn & quá hạn)...", width=400)
+        self.search_entry = ctk.CTkEntry(
+            search_frame_top, 
+            placeholder_text="🔍 Tìm kiếm phiếu mượn (đang mượn & quá hạn)...", 
+            width=400,
+            fg_color="#1e293b",
+            border_color="#475569"
+        )
         self.search_entry.pack(side="left", padx=(0, 10))
         self.search_entry.bind("<KeyRelease>", self.handle_search_realtime)
         
-        self.search_btn = ctk.CTkButton(search_frame_top, text="Tìm kiếm", command=self.handle_search, width=100)
+        self.search_btn = ctk.CTkButton(
+            search_frame_top, text="Tìm kiếm", command=self.handle_search, width=100,
+            fg_color="#3b82f6", hover_color="#2563eb"
+        )
         self.search_btn.pack(side="left", padx=(0, 10))
 
-        self.refresh_btn = ctk.CTkButton(search_frame_top, text="Làm mới", command=self.refresh_list, width=100)
+        self.refresh_btn = ctk.CTkButton(
+            search_frame_top, text="Làm mới", command=self.refresh_list, width=100,
+            fg_color="#475569", hover_color="#334155"
+        )
         self.refresh_btn.pack(side="left")
 
         # Vùng nút chức năng bên phải màn hình (Nút trả sách được thiết kế màu xanh lá cây nổi bật)
         self.return_btn = ctk.CTkButton(
-            search_frame_top, text="Trả Sách Đã Chọn", 
+            search_frame_top, text="Xem Đơn / Trả Sách", 
             command=self.handle_return_selected, 
-            width=160, fg_color="#4caf50", hover_color="#388e3c",
+            width=160, fg_color="#10b981", hover_color="#059669",
             font=ctk.CTkFont(weight="bold")
         )
         self.return_btn.pack(side="right")
 
         # Tạo hệ thống Tabs để chia lịch sử mượn trả thành các nhóm: Đang mượn, Quá hạn và Lịch sử
-        self.tabs = ctk.CTkTabview(self)
+        self.tabs = ctk.CTkTabview(
+            self,
+            fg_color="#1e293b",
+            segmented_button_selected_color="#3b82f6",
+            segmented_button_selected_hover_color="#2563eb",
+            segmented_button_unselected_color="#0f172a",
+            segmented_button_fg_color="#0f172a"
+        )
         self.tabs.pack(fill="both", expand=True, padx=5, pady=5)
         
         self.tab_active = self.tabs.add("Đang mượn")
@@ -144,13 +166,13 @@ class BorrowView(ctk.CTkFrame):
         columns = ("id", "student_id", "isbn", "borrow_date", "due_date", "status")
         
         self.active_table = DataTable(self.tab_active, columns=columns)
-        self.active_table.pack(fill="both", expand=True)
+        self.active_table.pack(fill="both", expand=True, padx=10, pady=10)
         
         self.overdue_table = DataTable(self.tab_overdue, columns=columns)
-        self.overdue_table.pack(fill="both", expand=True)
+        self.overdue_table.pack(fill="both", expand=True, padx=10, pady=10)
         
         self.history_table = DataTable(self.tab_history, columns=columns)
-        self.history_table.pack(fill="both", expand=True)
+        self.history_table.pack(fill="both", expand=True, padx=10, pady=10)
         
         for table in [self.active_table, self.overdue_table, self.history_table]:
             table.tree.heading("id", text="ID")
@@ -167,27 +189,30 @@ class BorrowView(ctk.CTkFrame):
             table.set_column_width("due_date", 180)
             table.set_column_width("status", 150)
             
-            table.tree.tag_configure("active", foreground="#ff9800")
-            table.tree.tag_configure("overdue", foreground="#f44336")
-            table.tree.tag_configure("returned", foreground="#4caf50")
+            table.tree.tag_configure("active", foreground="#f59e0b")   # Amber/Orange
+            table.tree.tag_configure("overdue", foreground="#ef4444")  # Rose/Red
+            table.tree.tag_configure("returned", foreground="#10b981") # Emerald/Green
 
-        # Kích hoạt tính năng click đúp chuột (Double-click) vào hàng dữ liệu để thực hiện trả sách nhanh chóng
+        # Kích hoạt tính năng click đúp chuột (Double-click) vào hàng dữ liệu để xem/trả sách
         self.active_table.tree.bind("<Double-1>", self.on_row_double_click)
         self.overdue_table.tree.bind("<Double-1>", self.on_row_double_click)
+        self.history_table.tree.bind("<Double-1>", self.on_row_double_click)
         
         self.refresh_list()
 
     def on_row_double_click(self, event):
-        # Cho phép người dùng click đúp chuột để thao tác trả sách nhanh mà không cần bấm nút "Trả Sách"
+        # Cho phép người dùng click đúp chuột để xem đơn trả hoặc trả sách
         current_tab = self.tabs.get()
         selected = None
         if current_tab == "Đang mượn":
             selected = self.active_table.get_selected()
         elif current_tab == "Quá hạn":
             selected = self.overdue_table.get_selected()
+        elif current_tab == "Lịch sử":
+            selected = self.history_table.get_selected()
             
         if selected:
-            self.handle_return(selected[0])
+            self.show_return_slip_dialog(selected[0])
 
     def handle_return_selected(self):
         current_tab = self.tabs.get()
@@ -196,13 +221,15 @@ class BorrowView(ctk.CTkFrame):
             selected = self.active_table.get_selected()
         elif current_tab == "Quá hạn":
             selected = self.overdue_table.get_selected()
+        elif current_tab == "Lịch sử":
+            selected = self.history_table.get_selected()
             
         if not selected:
-            messagebox.showwarning("Chọn phiếu mượn", "Vui lòng chọn một phiếu mượn (Đang mượn hoặc Quá hạn) từ bảng để trả sách.")
+            show_custom_warning(self, "Chọn phiếu mượn", "Vui lòng chọn một phiếu mượn từ bảng để tiếp tục.")
             return
             
         slip_id = selected[0]
-        self.handle_return(slip_id)
+        self.show_return_slip_dialog(slip_id)
 
     def handle_student_typing(self, event):
         query = self.student_entry.get().strip()
@@ -284,38 +311,20 @@ class BorrowView(ctk.CTkFrame):
                     self.on_refresh()
                 self.student_entry.delete(0, 'end')
                 self.isbn_entry.delete(0, 'end')
-                messagebox.showinfo("Thành công", "Mượn sách thành công.")
+                show_custom_info(self, "Thành công", "Mượn sách thành công.")
             else:
-                messagebox.showerror("Lỗi Mượn Sách", msg)
+                show_custom_error(self, "Lỗi Mượn Sách", msg)
         else:
-            messagebox.showwarning("Lỗi Nhập Liệu", "Vui lòng nhập cả Mã sinh viên và Mã sách (ISBN).")
+            show_custom_warning(self, "Lỗi Nhập Liệu", "Vui lòng nhập cả Mã sinh viên và Mã sách (ISBN).")
 
-    def handle_return(self, slip_id):
-        import datetime
-        slip_info = self.controller.get_slip(slip_id)
-        if not slip_info:
-            messagebox.showerror("Lỗi", "Không tìm thấy thông tin mã mượn.")
-            return
+    def show_return_slip_dialog(self, slip_id):
+        from views.components.return_slip_dialog import ReturnSlipDialog
+        dialog = ReturnSlipDialog(self.winfo_toplevel(), slip_id, on_success_callback=self.on_transaction_success)
 
-        confirm_msg = f"Xác nhận trả sách cho mã mượn {slip_id}?"
-        if slip_info["status"] == "Overdue":
-            expected_date = slip_info["expected_return_date"]
-            if isinstance(expected_date, str):
-                expected_date = datetime.datetime.strptime(expected_date, "%Y-%m-%d").date()
-            
-            days_overdue = (datetime.date.today() - expected_date).days
-            if days_overdue > 0:
-                fine = days_overdue * 100000
-                confirm_msg = f"Sách này đã quá hạn {days_overdue} ngày!\nSố tiền phạt là: {fine:,.0f} VNĐ.\n\n{confirm_msg}"
-
-        if messagebox.askyesno("Xác nhận", confirm_msg):
-            if self.controller.return_book(slip_id):
-                self.refresh_list()
-                if self.on_refresh:
-                    self.on_refresh()
-                messagebox.showinfo("Thành công", "Trả sách thành công.")
-            else:
-                messagebox.showerror("Lỗi", "Không thể xử lý trả sách.")
+    def on_transaction_success(self):
+        self.refresh_list()
+        if self.on_refresh:
+            self.on_refresh()
 
     def handle_search_realtime(self, event):
         self.handle_search()

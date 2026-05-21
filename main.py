@@ -10,8 +10,12 @@
 import customtkinter as ctk
 from database.db_manager import init_db
 from views.main_view import MainView
+from utils.debug_logger import setup_debug_logger
 
 def main():
+    # Kích hoạt hệ thống Debug Logger thời gian thực
+    setup_debug_logger()
+    
     # Bước 1: Khởi tạo cơ sở dữ liệu
     # Gọi hàm init_db() từ db_manager để tạo các bảng (books, students, borrow_slips) nếu chưa tồn tại
     # và thiết lập các tính năng tìm kiếm Full-Text Search (FTS5).
