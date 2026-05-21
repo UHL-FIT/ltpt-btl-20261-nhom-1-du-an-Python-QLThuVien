@@ -177,8 +177,10 @@ class MainView:
             self.active_view.pack_forget()
             
         # Khởi tạo view mới nếu chưa có trong Cache
+        is_new_view = False
         if view_key not in self.views_cache:
             self.views_cache[view_key] = view_class(self.content_area, on_refresh=self.notify_data_changed)
+            is_new_view = True
             
         # Hiển thị view tương ứng
         self.active_view = self.views_cache[view_key]
@@ -186,8 +188,9 @@ class MainView:
         
         # Nếu chuyển sang tab Thống kê và dữ liệu hệ thống đã thay đổi, tự động refresh
         if view_key == "stats":
-            if self.data_changed and hasattr(self.active_view, "refresh_stats"):
-                self.active_view.refresh_stats()
+            if self.data_changed:
+                if not is_new_view and hasattr(self.active_view, "refresh_stats"):
+                    self.active_view.refresh_stats()
                 self.data_changed = False
                 
         self.update_button_states()

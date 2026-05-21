@@ -342,7 +342,7 @@ class BorrowView(ctk.CTkFrame):
         self.tabs.set("Đang mượn")
 
     def refresh_list(self):
-        slips = self.controller.get_active_slips() + self.controller.get_history_slips()
+        slips = self.controller.get_all_slips_for_view()
         self.populate_lists(slips)
 
     def populate_lists(self, all_slips):

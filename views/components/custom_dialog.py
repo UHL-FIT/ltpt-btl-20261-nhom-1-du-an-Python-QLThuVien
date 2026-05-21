@@ -42,7 +42,7 @@ class CustomMessageDialog(ctk.CTkToplevel):
         
         # Icon/Title Color mapping
         title_color = "#3b82f6"  # Blue for Info
-        icon_symbol = "ℹ️"
+        icon_symbol = "💡"
         if icon == "error":
             title_color = "#ef4444"  # Red
             icon_symbol = "❌"

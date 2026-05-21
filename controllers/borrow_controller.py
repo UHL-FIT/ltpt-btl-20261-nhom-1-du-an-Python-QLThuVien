@@ -104,34 +104,39 @@ class BorrowController:
         """
         session = get_session()
         today = datetime.date.today()
-        overdue_slips = session.query(BorrowSlip).filter(
-            BorrowSlip.status == "Borrowed",
-            BorrowSlip.expected_return_date < today
-        ).all()
-        
-        if overdue_slips:
-            try:
-                for slip in overdue_slips:
-                    slip.status = "Overdue"
+        try:
+            # Tối ưu hóa bằng Bulk Update trực tiếp trên SQL thay vì tải vòng lặp Python
+            updated_count = session.query(BorrowSlip).filter(
+                BorrowSlip.status == "Borrowed",
+                BorrowSlip.expected_return_date < today
+            ).update({"status": "Overdue"}, synchronize_session=False)
+            
+            if updated_count > 0:
                 session.commit()
-            except Exception as e:
-                session.rollback()
-                print("Lỗi khi cập nhật trạng thái quá hạn:", e)
-        session.close()
+        except Exception as e:
+            session.rollback()
+            print("Lỗi khi cập nhật trạng thái quá hạn:", e)
+        finally:
+            session.close()
 
     def get_active_slips(self):
         """Lấy danh sách các phiếu mượn đang hoạt động (chưa trả sách)."""
-        self.check_and_update_overdue()
         session = get_session()
         slips = session.query(BorrowSlip).filter(BorrowSlip.status == "Borrowed").all()
         return slips
 
     def get_history_slips(self):
         """Lấy lịch sử các phiếu mượn (đã trả hoặc quá hạn)."""
-        self.check_and_update_overdue()
         session = get_session()
         from sqlalchemy import or_
         slips = session.query(BorrowSlip).filter(or_(BorrowSlip.status == "Returned", BorrowSlip.status == "Overdue")).all()
+        return slips
+        
+    def get_all_slips_for_view(self):
+        """Tối ưu hóa: Kiểm tra quá hạn 1 lần duy nhất và lấy toàn bộ phiếu mượn để view tự phân loại."""
+        self.check_and_update_overdue()
+        session = get_session()
+        slips = session.query(BorrowSlip).all()
         return slips
 
     def search_slips(self, query):
