@@ -36,16 +36,24 @@ class DataAnalyzer:
         student_map = {str(s.student_id): str(s.name) for s in students}
         book_map = {str(b.isbn): {"name": str(b.name), "genre": str(b.genre), "status": str(b.status)} for b in books}
         
-        # Sách đang mượn vs Sẵn có vs Hư hỏng
-        borrowed_books = sum(1 for b in books if b.status == "Borrowed")
-        damaged_books = sum(1 for b in books if b.status == "Damaged")
-        available_books = total_books - borrowed_books - damaged_books
-        
-        # Phân bố thể loại sách
+        # Sách đang mượn vs Sẵn có vs Hư hỏng & Phân bố thể loại (Gom vào 1 vòng lặp duy nhất để tối ưu hiệu năng)
+        borrowed_books = 0
+        damaged_books = 0
         genre_counts = {}
+        available_by_genre = {}
+        
         for b in books:
+            if b.status == "Borrowed":
+                borrowed_books += 1
+            elif b.status == "Damaged":
+                damaged_books += 1
+                
             if b.genre:
                 genre_counts[b.genre] = genre_counts.get(b.genre, 0) + 1
+                if b.status == "Available":
+                    available_by_genre[b.genre] = available_by_genre.get(b.genre, 0) + 1
+                    
+        available_books = total_books - borrowed_books - damaged_books
                 
         # Khởi tạo các giá trị mặc định cho thống kê phiếu mượn nếu chưa có phiếu nào
         default_stats = {
@@ -127,18 +135,19 @@ class DataAnalyzer:
         return_punctuality = {"OnTime": on_time_count, "Late": late_count}
         
         # Xu hướng tiền phạt phát sinh theo tháng (6 tháng gần nhất)
-        # Phạt 5.000 VNĐ / ngày quá hạn
-        def calc_fine(row):
-            expected = pd.to_datetime(row['expected_return'])
-            if row['status'] == 'Returned' and row['actual_return']:
-                actual = pd.to_datetime(row['actual_return'])
-                if actual > expected:
-                    return (actual - expected).days * 5000
-            elif row['status'] == 'Overdue' or (row['status'] == 'Borrowed' and today_dt > expected):
-                return (today_dt - expected).days * 5000
-            return 0
-            
-        df_slips['fine'] = df_slips.apply(calc_fine, axis=1)
+        # Tối ưu hoá (Vectorization) để tăng tốc độ tính toán tiền phạt
+        expected = pd.to_datetime(df_slips['expected_return'], errors='coerce')
+        actual = pd.to_datetime(df_slips['actual_return'], errors='coerce')
+        
+        cond_returned_late = (df_slips['status'] == 'Returned') & (actual.notna()) & (actual > expected)
+        fine_returned_late = (actual - expected).dt.days * 5000
+        
+        cond_overdue = (df_slips['status'] == 'Overdue') | ((df_slips['status'] == 'Borrowed') & (today_dt > expected))
+        fine_overdue = (today_dt - expected).dt.days * 5000
+        
+        df_slips['fine'] = 0
+        df_slips.loc[cond_returned_late, 'fine'] = fine_returned_late[cond_returned_late]
+        df_slips.loc[cond_overdue, 'fine'] = fine_overdue[cond_overdue]
         df_slips['month'] = df_slips['borrow_date'].astype(str).str[:7]
         fine_by_month = df_slips.groupby('month')['fine'].sum().sort_index().tail(6)
         fine_trend = {str(m): float(val) for m, val in fine_by_month.items()}
@@ -152,8 +161,9 @@ class DataAnalyzer:
             if name not in borrow_by_weekday:
                 borrow_by_weekday[name] = 0
                 
-        # Lượt mượn sách theo thể loại
-        df_slips['genre'] = df_slips['isbn'].map(lambda x: book_map.get(str(x), {}).get("genre", "Không xác định"))
+        # Lượt mượn sách theo thể loại (Vectorized map)
+        genre_mapping = {str(k): v.get("genre", "Không xác định") for k, v in book_map.items()}
+        df_slips['genre'] = df_slips['isbn'].astype(str).map(genre_mapping).fillna("Không xác định")
         genre_borrow_counts = df_slips['genre'].value_counts()
         borrow_by_genre = {str(g): int(cnt) for g, cnt in genre_borrow_counts.items()}
         
@@ -161,7 +171,7 @@ class DataAnalyzer:
         df_ret = df_slips[(df_slips['status'] == 'Returned') & (df_slips['actual_return'].notna())].copy()
         if len(df_ret) > 0:
             df_ret['duration'] = (pd.to_datetime(df_ret['actual_return']) - pd.to_datetime(df_ret['borrow_date'])).dt.days # type: ignore
-            df_ret['genre'] = df_ret['isbn'].map(lambda x: book_map.get(str(x), {}).get("genre", "Không xác định"))
+            df_ret['genre'] = df_ret['isbn'].astype(str).map(genre_mapping).fillna("Không xác định")
             avg_dur = df_ret.groupby('genre')['duration'].mean()
             avg_duration_by_genre = {str(g): round(float(v), 1) for g, v in avg_dur.items()}
         else:
@@ -170,35 +180,25 @@ class DataAnalyzer:
         # Phân bố số ngày mượn thực tế (chỉ tính phiếu đã trả)
         duration_distribution = {"< 7 ngày": 0, "7-14 ngày": 0, "14-30 ngày": 0, "> 30 ngày": 0}
         if len(df_ret) > 0:
-            durations = (pd.to_datetime(df_ret['actual_return']) - pd.to_datetime(df_ret['borrow_date'])).dt.days # type: ignore
-            for d in durations:
-                if d < 7:
-                     duration_distribution["< 7 ngày"] += 1
-                elif d <= 14:
-                     duration_distribution["7-14 ngày"] += 1
-                elif d <= 30:
-                     duration_distribution["14-30 ngày"] += 1
-                else:
-                     duration_distribution["> 30 ngày"] += 1
+            durations = (pd.to_datetime(df_ret['actual_return']) - pd.to_datetime(df_ret['borrow_date'])).dt.days
+            # Vectorization bằng hàm cắt bin của Pandas để đếm tốc độ cao
+            bins = [-float('inf'), 6, 14, 30, float('inf')]
+            labels = ["< 7 ngày", "7-14 ngày", "14-30 ngày", "> 30 ngày"]
+            counts = pd.cut(durations, bins=bins, labels=labels).value_counts()
+            for k in labels:
+                duration_distribution[k] = int(counts.get(k, 0))
                      
-        # Số lượng sách có sẵn trong kho theo thể loại
-        available_by_genre = {}
-        for b in books:
-            if b.status == "Available" and b.genre:
-                available_by_genre[b.genre] = available_by_genre.get(b.genre, 0) + 1
+        # Số lượng sách có sẵn trong kho theo thể loại đã được tính toán tối ưu ở vòng lặp đầu tiên
                 
         # Top 5 sách bị quá hạn nhiều nhất (đang quá hạn hoặc từng bị trả trễ hạn)
-        def check_ever_overdue(row):
-            if row['status'] == 'Overdue':
-                return True
-            expected = pd.to_datetime(row['expected_return'])
-            if row['status'] == 'Returned' and row['actual_return']:
-                actual = pd.to_datetime(row['actual_return'])
-                if actual > expected:
-                    return True
-            return False
-            
-        df_slips['ever_overdue'] = df_slips.apply(check_ever_overdue, axis=1)
+        # Tối ưu hoá (Vectorization) để tránh lặp từng hàng (gây treo UI)
+        expected = pd.to_datetime(df_slips['expected_return'], errors='coerce')
+        actual = pd.to_datetime(df_slips['actual_return'], errors='coerce')
+        
+        cond1 = df_slips['status'] == 'Overdue'
+        cond2 = (df_slips['status'] == 'Returned') & (actual.notna()) & (actual > expected)#type: ignore
+        
+        df_slips['ever_overdue'] = cond1 | cond2
         df_overdue_slips = df_slips[df_slips['ever_overdue']]
         overdue_book_counts = df_overdue_slips['isbn'].value_counts().head(5)
         most_overdue_books = [{"name": book_map.get(str(isbn), {}).get("name", str(isbn)), "count": int(count)} 

@@ -215,19 +215,23 @@ class BookView(ctk.CTkFrame):
             
         self.table.clear()
         books = self.controller.search_books(query)
+        rows = []
         for book in books:
             tag = "available" if book.status == "Available" else "borrowed"
             status_vn = "Có sẵn" if book.status == "Available" else "Đang mượn"
-            self.table.insert((book.isbn, book.name, book.genre, status_vn), tags=(tag,))
+            rows.append(((book.isbn, book.name, book.genre, status_vn), (tag,)))
+        self.table.insert_batch(rows)
 
     def refresh_list(self):
         self.table.clear()
 
         books = self.controller.get_all_books()
+        rows = []
         for book in books:
             tag = "available" if book.status == "Available" else "borrowed"
             status_vn = "Có sẵn" if book.status == "Available" else "Đang mượn"
-            self.table.insert((book.isbn, book.name, book.genre, status_vn), tags=(tag,))
+            rows.append(((book.isbn, book.name, book.genre, status_vn), (tag,)))
+        self.table.insert_batch(rows)
 
     def handle_delete(self):
         selected = self.table.get_selected()
@@ -246,6 +250,17 @@ class BookView(ctk.CTkFrame):
                 show_custom_error(self, "Lỗi", "Không thể xóa sách này.")
 
     def handle_import_excel(self):
+        from views.components.import_excel_dialog import ImportExcelDialog
+        columns = ["Mã Sách (ISBN)", "Tên Sách", "Thể Loại", "Tác Giả", "Nhà Xuất Bản", "Năm Xuất Bản"]
+        ImportExcelDialog(
+            self, 
+            title="Nhập dữ liệu Sách từ Excel", 
+            template_columns=columns, 
+            default_template_name="Template_Books.xlsx",
+            on_import_click=self._process_import_excel
+        )
+
+    def _process_import_excel(self):
         import threading
         from tkinter import filedialog
         import pandas as pd

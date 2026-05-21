@@ -353,6 +353,10 @@ class BorrowView(ctk.CTkFrame):
         
         is_searching = bool(self.search_entry.get().strip())
         
+        active_rows = []
+        overdue_rows = []
+        history_rows = []
+        
         for slip in all_slips:
             status_tag = "overdue" if slip.status == "Overdue" else ("returned" if slip.status == "Returned" else "active")
             status_vn = "Quá hạn" if slip.status == "Overdue" else ("Đã trả" if slip.status == "Returned" else "Đang mượn")
@@ -362,14 +366,18 @@ class BorrowView(ctk.CTkFrame):
             if is_searching:
                 # Nếu đang trong chế độ tìm kiếm, gộp cả 2 trạng thái "Đang mượn" và "Quá hạn" vào chung bảng active_table để hiển thị dễ dàng hơn
                 if slip.status in ["Borrowed", "Overdue"]:
-                    self.active_table.insert(row_data, tags=(status_tag,))
+                    active_rows.append((row_data, (status_tag,)))
                 else:
-                    self.history_table.insert(row_data, tags=(status_tag,))
+                    history_rows.append((row_data, (status_tag,)))
             else:
                 # Nếu không tìm kiếm, phân loại và hiển thị dữ liệu bình thường theo từng tab riêng biệt
                 if slip.status == "Borrowed":
-                    self.active_table.insert(row_data, tags=(status_tag,))
+                    active_rows.append((row_data, (status_tag,)))
                 elif slip.status == "Overdue":
-                    self.overdue_table.insert(row_data, tags=(status_tag,))
+                    overdue_rows.append((row_data, (status_tag,)))
                 else:
-                    self.history_table.insert(row_data, tags=(status_tag,))
+                    history_rows.append((row_data, (status_tag,)))
+                    
+        self.active_table.insert_batch(active_rows)
+        self.overdue_table.insert_batch(overdue_rows)
+        self.history_table.insert_batch(history_rows)

@@ -215,15 +215,15 @@ class StudentView(ctk.CTkFrame):
             
         self.table.clear()
         students = self.controller.search_students(query)
-        for student in students:
-            self.table.insert((student.student_id, student.name, student.email, student.phone))
+        rows = [(student.student_id, student.name, student.email, student.phone) for student in students]
+        self.table.insert_batch(rows)
 
     def refresh_list(self):
         self.table.clear()
 
         students = self.controller.get_all_students()
-        for student in students:
-            self.table.insert((student.student_id, student.name, student.email, student.phone))
+        rows = [(student.student_id, student.name, student.email, student.phone) for student in students]
+        self.table.insert_batch(rows)
 
     def handle_delete(self):
         selected = self.table.get_selected()
@@ -242,6 +242,17 @@ class StudentView(ctk.CTkFrame):
                 show_custom_error(self, "Lỗi", "Không thể xóa sinh viên này.")
 
     def handle_import_excel(self):
+        from views.components.import_excel_dialog import ImportExcelDialog
+        columns = ["Mã Sinh Viên", "Họ Tên", "Email", "Số Điện Thoại"]
+        ImportExcelDialog(
+            self, 
+            title="Nhập dữ liệu Học sinh từ Excel", 
+            template_columns=columns, 
+            default_template_name="Template_Students.xlsx",
+            on_import_click=self._process_import_excel
+        )
+
+    def _process_import_excel(self):
         import threading
         from tkinter import filedialog
         import pandas as pd

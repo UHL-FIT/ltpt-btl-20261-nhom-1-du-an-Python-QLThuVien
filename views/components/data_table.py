@@ -126,6 +126,23 @@ class DataTable(ctk.CTkFrame):
     def insert(self, values, tags=()):
         self.tree.insert("", "end", values=values, tags=tags)
         
+    def insert_batch(self, rows_data):
+        """
+        Chèn hàng loạt dữ liệu để tối ưu hóa hiệu năng vẽ lại giao diện (GUI redrawing).
+        rows_data: List của tuple/list có dạng: [(values, tags), (values, tags), ...]
+                   hoặc đơn giản là danh sách các values: [values1, values2, ...]
+        """
+        self.tree.grid_forget()
+        try:
+            for item in rows_data:
+                if isinstance(item, tuple) and len(item) == 2 and isinstance(item[1], tuple):
+                    values, tags = item
+                else:
+                    values, tags = item, ()
+                self.tree.insert("", "end", values=values, tags=tags)
+        finally:
+            self.tree.grid(row=0, column=0, sticky="nsew")
+        
     def clear(self):
         for item in self.tree.get_children():
             self.tree.delete(item)

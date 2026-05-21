@@ -66,12 +66,14 @@ def is_app_code(filename):
 
 def profile_calls(frame, event, arg):
     """Tracer theo dõi và in ra dạng cây các hàm/phương thức được gọi."""
+    func_name = frame.f_code.co_name
+    if func_name in ("<genexpr>", "<listcomp>", "<dictcomp>", "<setcomp>"):
+        return
+        
     if event == 'call':
         filename = frame.f_code.co_filename
         if not is_app_code(filename):
             return
-            
-        func_name = frame.f_code.co_name
         cls_name = ""
         # Thử suy luận tên class từ f_locals nếu hàm này là method
         if "self" in frame.f_locals:
