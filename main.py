@@ -12,9 +12,12 @@ from database.db_manager import init_db
 from views.main_view import MainView
 from utils.debug_logger import setup_debug_logger
 
+import sys
+
 def main():
-    # Kích hoạt hệ thống Debug Logger thời gian thực
-    setup_debug_logger()
+    # Kích hoạt hệ thống Debug Logger thời gian thực nếu có tham số devmode
+    if "--devmode" in sys.argv or "devmode" in sys.argv:
+        setup_debug_logger()
     
     # Bước 1: Khởi tạo cơ sở dữ liệu
     # Gọi hàm init_db() từ db_manager để tạo các bảng (books, students, borrow_slips) nếu chưa tồn tại

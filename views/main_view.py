@@ -72,7 +72,7 @@ class MainView:
         self.students_btn = self.create_nav_btn("🎓 Quản lý Học sinh", self.show_students)
         self.borrow_btn = self.create_nav_btn("🔄 Quản lý Mượn Trả", self.show_borrowing)
         self.stats_btn = self.create_nav_btn("📊 Thống kê & Phân tích", self.show_stats)
-        self.credit_btn = self.create_nav_btn("ℹ️ Giới thiệu", self.show_credit)
+        self.credit_btn = self.create_nav_btn("💡 Giới thiệu", self.show_credit)
 
         # Lưu ánh xạ nút và văn bản/icon phục vụ đóng mở sidebar
         self.nav_buttons = {
@@ -88,7 +88,7 @@ class MainView:
             "students": {"text": "Quản lý Học sinh", "icon": "🎓"},
             "borrow": {"text": "Quản lý Mượn Trả", "icon": "🔄"},
             "stats": {"text": "Thống kê & Phân tích", "icon": "📊"},
-            "credit": {"text": "Giới thiệu", "icon": "ℹ️"}
+            "credit": {"text": "Giới thiệu", "icon": "💡"}
         }
 
         # Khởi tạo nút Xuất Dữ Liệu ở cuối sidebar
