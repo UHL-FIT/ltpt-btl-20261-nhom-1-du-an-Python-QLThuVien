@@ -27,8 +27,8 @@ class StatsView(ctk.CTkFrame):
         # Trạng thái biểu đồ đang được chọn mặc định
         self.selected_chart_name = "Top 5 Sách Mượn Nhiều Nhất"
         
-        # Khởi tạo vùng nội dung cuộn (Scrollable Frame) chính để hiển thị vừa vặn trên mọi màn hình
-        self.scroll_container = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        # Khởi tạo vùng nội dung chính (Đổi từ ScrollableFrame sang Frame để hỗ trợ stretch/expand toàn màn hình)
+        self.scroll_container = ctk.CTkFrame(self, fg_color="transparent")
         self.scroll_container.pack(fill="both", expand=True)
         
         # Vẽ nội dung thống kê và biểu đồ lần đầu tiên
@@ -134,11 +134,10 @@ class StatsView(ctk.CTkFrame):
 
         # 5. Vùng vẽ biểu đồ lớn duy nhất
         self.chart_container = ctk.CTkFrame(
-            self.scroll_container, height=480, fg_color="#1e293b",
+            self.scroll_container, fg_color="#1e293b",
             corner_radius=12, border_color="#334155", border_width=1
         )
         self.chart_container.pack(fill="both", expand=True, padx=5, pady=5)
-        self.chart_container.pack_propagate(False) # Giữ nguyên độ cao cố định để cân đối giao diện
 
         # Vẽ biểu đồ đang chọn
         self.draw_chart()
